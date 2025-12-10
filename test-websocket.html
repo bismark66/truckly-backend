@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Truckly WebSocket Test Client</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .status.connected {
+            background: #10b981;
+        }
+
+        .status.disconnected {
+            background: #ef4444;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 15px 25px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-connect {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .btn-disconnect {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .btn-update {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+        }
+
+        .btn-track {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        .btn-clear {
+            background: linear-gradient(135deg, #6b7280, #4b5563);
+        }
+
+        .input-section {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .output-section {
+            background: #1f2937;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .output-section h3 {
+            color: #f3f4f6;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .log-entry {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .log-entry.info {
+            background: #1e40af;
+            color: #dbeafe;
+        }
+
+        .log-entry.success {
+            background: #065f46;
+            color: #d1fae5;
+        }
+
+        .log-entry.data {
+            background: #7c2d12;
+            color: #fed7aa;
+        }
+
+        .timestamp {
+            opacity: 0.7;
+            font-size: 11px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚛 Truckly WebSocket Test Client</h1>
+            <div class="status disconnected" id="statusBadge">Disconnected</div>
+        </div>
+
+        <div class="content">
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="driverId">Driver ID:</label>
+                    <input type="text" id="driverId" value="driver123" placeholder="Enter driver ID">
+                </div>
+                <div class="input-group">
+                    <label for="latitude">Latitude:</label>
+                    <input type="number" id="latitude" value="5.6037" step="0.0001" placeholder="Enter latitude">
+                </div>
+                <div class="input-group">
+                    <label for="longitude">Longitude:</label>
+                    <input type="number" id="longitude" value="-0.1870" step="0.0001" placeholder="Enter longitude">
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-connect" onclick="connectSocket()">🔌 Connect</button>
+                <button class="btn-disconnect" onclick="disconnect()">🔌 Disconnect</button>
+                <button class="btn-update" onclick="updateLocation()">📍 Update Location</button>
+                <button class="btn-track" onclick="trackDriver()">👁️ Track Driver</button>
+                <button class="btn-clear" onclick="clearOutput()">🗑️ Clear Logs</button>
+            </div>
+
+            <div class="output-section">
+                <h3>📋 Event Logs</h3>
+                <div id="output"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket;
+        const output = document.getElementById('output');
+        const statusBadge = document.getElementById('statusBadge');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `<span class="timestamp">[${timestamp}]</span>${message}`;
+            output.prepend(entry);
+        }
+
+        function updateStatus(connected) {
+            if (connected) {
+                statusBadge.textContent = 'Connected';
+                statusBadge.className = 'status connected';
+            } else {
+                statusBadge.textContent = 'Disconnected';
+                statusBadge.className = 'status disconnected';
+            }
+        }
+
+        function connectSocket() {
+            if (socket && socket.connected) {
+                log('⚠️ Already connected!', 'info');
+                return;
+            }
+
+            log('Connecting to ws://localhost:3000...', 'info');
+            
+            socket = io('http://localhost:3000', {
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connect', () => {
+                log(`✅ Connected successfully! Socket ID: ${socket.id}`, 'success');
+                updateStatus(true);
+            });
+
+            socket.on('disconnect', (reason) => {
+                log(`❌ Disconnected. Reason: ${reason}`, 'info');
+                updateStatus(false);
+            });
+
+            socket.on('connect_error', (error) => {
+                log(`🚨 Connection Error: ${error.message}`, 'info');
+                updateStatus(false);
+            });
+
+            socket.on('driverLocation', (data) => {
+                log(`📍 Driver Location Update: ${JSON.stringify(data, null, 2)}`, 'data');
+            });
+
+            socket.on('tracking', (data) => {
+                log(`👁️ Tracking Response: ${JSON.stringify(data, null, 2)}`, 'success');
+            });
+
+            // Listen for any other events
+            socket.onAny((eventName, ...args) => {
+                if (!['connect', 'disconnect', 'driverLocation', 'tracking'].includes(eventName)) {
+                    log(`📨 Event '${eventName}': ${JSON.stringify(args, null, 2)}`, 'data');
+                }
+            });
+        }
+
+        function updateLocation() {
+            if (!socket || !socket.connected) {
+                alert('❌ Please connect first!');
+                return;
+            }
+
+            const data = {
+                driverId: document.getElementById('driverId').value,
+                lat: parseFloat(document.getElementById('latitude').value),
+                lng: parseFloat(document.getElementById('longitude').value)
+            };
+
+            socket.emit('updateLocation', data);
+            log(`📤 Sent updateLocation: ${JSON.stringify(data, null, 2)}`, 'info');
+        }
+
+        function trackDriver() {
+            if (!socket || !socket.connected) {
+                alert('❌ Please connect first!');
+                return;
+            }
+
+            const data = {
+                driverId: document.getElementById('driverId').value
+            };
+
+            socket.emit('trackDriver', data);
+            log(`📤 Sent trackDriver: ${JSON.stringify(data, null, 2)}`, 'info');
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                log('🔌 Disconnected manually', 'info');
+                updateStatus(false);
+            }
+        }
+
+        function clearOutput() {
+            output.innerHTML = '';
+            log('🗑️ Logs cleared', 'info');
+        }
+
+        // Initial log
+        log('👋 Welcome! Click "Connect" to start testing the WebSocket connection.', 'info');
+    </script>
+</body>
+</html>
