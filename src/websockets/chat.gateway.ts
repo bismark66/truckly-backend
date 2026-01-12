@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -21,9 +23,7 @@ export class ChatGateway extends BaseGateway {
   @WebSocketServer()
   declare protected server: Server;
 
-  constructor(
-    @Inject('REDIS_CLIENT') redisPublisher: Redis,
-  ) {
+  constructor(@Inject('REDIS_CLIENT') redisPublisher: Redis) {
     super(redisPublisher);
   }
 
@@ -66,6 +66,7 @@ export class ChatGateway extends BaseGateway {
     },
     @ConnectedSocket() client: Socket,
   ) {
+    console.log('---- cdjkd -----', data.message);
     const chatMessage = {
       ...data,
       timestamp: new Date().toISOString(),
@@ -77,9 +78,6 @@ export class ChatGateway extends BaseGateway {
     return { event: 'messageSent', data: chatMessage };
   }
 
-
-  
-
   @SubscribeMessage('leaveChat')
   handleLeaveChat(
     @MessageBody() data: { tripId: string; userId: string },
@@ -87,6 +85,38 @@ export class ChatGateway extends BaseGateway {
   ) {
     client.leave(`chat_${data.tripId}`);
     client.to(`chat_${data.tripId}`).emit('userLeft', { userId: data.userId });
-    return { event: 'leftChat', data: `Left chat room for trip ${data.tripId}` };
+    return {
+      event: 'leftChat',
+      data: `Left chat room for trip ${data.tripId}`,
+    };
+  }
+
+  @SubscribeMessage('directMessage')
+  handleDirectMessage(
+    @MessageBody()
+    data: {
+      to: string;
+      message: string;
+    },
+    @ConnectedSocket() client: Socket,
+  ) {
+    console.log('DM', data, 'from', client.id);
+    const dmPayload = {
+      senderId: client.id,
+      message: data.message,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Send directly to the recipient's socket
+    this.server.to(data.to).emit('newDirectMessage', dmPayload);
+
+    return {
+      event: 'directMessageSent',
+      data: {
+        to: data.to,
+        message: data.message,
+        timestamp: dmPayload.timestamp,
+      },
+    };
   }
 }
