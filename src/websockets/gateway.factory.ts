@@ -11,6 +11,15 @@ import Redis from 'ioredis';
 import { BaseGateway, RedisChannelHandler } from './base.gateway';
 import { LocationGateway } from './location.gateway';
 import { ChatGateway } from './chat.gateway';
+import { generateClientName } from './client-name.util';
+
+const CONNECTED_CLIENTS_KEY = 'connected_clients';
+
+export interface ConnectedClient {
+  id: string;
+  name: string;
+  connectedAt: string;
+}
 
 /**
  * GatewayFactory - Central gateway that manages connection lifecycle
@@ -34,6 +43,7 @@ export class GatewayFactory
 
   constructor(
     @Inject('REDIS_SUBSCRIBER') private readonly redisSubscriber: Redis,
+    @Inject('REDIS_CLIENT') private readonly redisClient: Redis,
     private readonly locationGateway: LocationGateway,
     private readonly chatGateway: ChatGateway,
   ) {}
@@ -73,11 +83,32 @@ export class GatewayFactory
     console.log('Gateway Factory initialized');
   }
 
-  handleConnection(client: Socket) {
-    console.log(`Client connected: ${client.id}`);
+  async handleConnection(client: Socket) {
+    const name = generateClientName();
+    const clientData: ConnectedClient = {
+      id: client.id,
+      name,
+      connectedAt: new Date().toISOString(),
+    };
+    await this.redisClient.hset(
+      CONNECTED_CLIENTS_KEY,
+      client.id,
+      JSON.stringify(clientData),
+    );
+    console.log(`Client connected: ${client.id} as "${name}"`);
   }
 
-  handleDisconnect(client: Socket) {
+  async handleDisconnect(client: Socket) {
+    await this.redisClient.hdel(CONNECTED_CLIENTS_KEY, client.id);
     console.log(`Client disconnected: ${client.id}`);
   }
+
+  /**
+   * Get all currently connected clients
+   */
+  async getConnectedClients(): Promise<ConnectedClient[]> {
+    const clients = await this.redisClient.hgetall(CONNECTED_CLIENTS_KEY);
+    return Object.values(clients).map((c) => JSON.parse(c) as ConnectedClient);
+  }
 }
+
