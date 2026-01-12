@@ -2,12 +2,17 @@ import { Controller, Get, Post, Body } from '@nestjs/common';
 import { AppService } from './app.service';
 import { LocationGateway } from './websockets/location.gateway';
 import { FindDriversDto } from './drivers/dto/find-drivers.dto';
+import {
+  GatewayFactory,
+  ConnectedClient,
+} from './websockets/gateway.factory';
 
 @Controller()
 export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly locationGateway: LocationGateway,
+    private readonly gatewayFactory: GatewayFactory,
   ) {}
 
   @Get()
@@ -23,4 +28,10 @@ export class AppController {
     );
     return results;
   }
+
+  @Get('clients')
+  async getConnectedClients(): Promise<ConnectedClient[]> {
+    return this.gatewayFactory.getConnectedClients();
+  }
 }
+
