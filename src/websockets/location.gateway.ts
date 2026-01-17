@@ -10,6 +10,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
 import { BaseGateway, RedisChannelHandler } from './base.gateway';
 import { ConfigService } from '@nestjs/config';
+import { DriverStatusService, DriverStatus } from '../drivers/driver-status.service';
+import { DriversService } from '../drivers/drivers.service';
 
 @WebSocketGateway({
   cors: {
@@ -21,11 +23,12 @@ import { ConfigService } from '@nestjs/config';
 export class LocationGateway extends BaseGateway {
   @WebSocketServer()
   declare protected server: Server;
- 
 
   constructor(
     @Inject('REDIS_CLIENT') redisPublisher: Redis,
     private configService: ConfigService,
+    private driverStatusService: DriverStatusService,
+    private driversService: DriversService,
   ) {
     super(redisPublisher);
   }
@@ -43,40 +46,116 @@ export class LocationGateway extends BaseGateway {
     ];
   }
 
+  async findClosestDriver(
+    lat: number,
+    lng: number,
+    radiusKm: number = this.configService.get('DRIVER_SEARCH_RADIUS') || 10,
+  ) {
+    const driversNearMe: { driverId: string; distance: number; status: DriverStatus | null }[] = [];
 
-  async findClosestDriver(lat: number, lng: number, radiusKm: number = this.configService.get('DRIVER_SEARCH_RADIUS') || 10) {
-  // Store driver location: GEOADD drivers <lng> <lat> <driverId>
-  // Find nearby: GEORADIUS or GEOSEARCH
-  const driversNearMe: { driverId: string; distance: number }[] = [];
-  
-  // GEOSEARCH with WITHDIST returns: [[driverId, distance], [driverId, distance], ...]
-  const nearbyDrivers = await this.redisPublisher.call(
-    'GEOSEARCH',
-    'driver-locations',        // Key
-    'FROMLONLAT', lng, lat,    // Customer location
-    'BYRADIUS', radiusKm, 'km', // Search radius
-    'WITHDIST',                 // Include distance
-    'ASC',                      // Sort by closest first
-    'COUNT', 3                  // Return top 3 closest
-  ) as [string, string][] | null;  
-  if (nearbyDrivers && nearbyDrivers.length > 0) {
-    nearbyDrivers.forEach((driver) => {
-      driversNearMe.push({
-        driverId: driver[0],
-        distance: parseFloat(driver[1]),
-      });
-    });
+    const nearbyDrivers = (await this.redisPublisher.call(
+      'GEOSEARCH',
+      'driver-locations',
+      'FROMLONLAT',
+      lng,
+      lat,
+      'BYRADIUS',
+      radiusKm,
+      'km',
+      'WITHDIST',
+      'ASC',
+      'COUNT',
+      10,
+    )) as [string, string][] | null;
+
+    if (nearbyDrivers && nearbyDrivers.length > 0) {
+      for (const driver of nearbyDrivers) {
+        const driverId = driver[0];
+        const status = await this.driverStatusService.getStatus(driverId);
+        // Only include online drivers
+        if (status === DriverStatus.ONLINE) {
+          driversNearMe.push({
+            driverId,
+            distance: parseFloat(driver[1]),
+            status,
+          });
+        }
+      }
+    }
+
+    return driversNearMe.length > 0 ? driversNearMe.slice(0, 3) : null;
   }
-  
-  return driversNearMe.length > 0 ? driversNearMe : null;
-}
 
+  /**
+   * Driver goes online
+   */
+  @SubscribeMessage('goOnline')
+  async handleGoOnline(
+    @MessageBody() data: { driverId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    await this.driverStatusService.setStatus(data.driverId, DriverStatus.ONLINE);
+    console.log(`[Status] Driver ${data.driverId} is now ONLINE`);
+    return { event: 'statusChanged', data: { status: DriverStatus.ONLINE } };
+  }
+
+  /**
+   * Driver goes offline
+   */
+  @SubscribeMessage('goOffline')
+  async handleGoOffline(
+    @MessageBody() data: { driverId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    await this.driverStatusService.removeStatus(data.driverId);
+    console.log(`[Status] Driver ${data.driverId} is now OFFLINE`);
+    return { event: 'statusChanged', data: { status: DriverStatus.OFFLINE } };
+  }
+
+  /**
+   * Set driver status (ONLINE, OFFLINE, ON_TRIP)
+   */
+  @SubscribeMessage('setStatus')
+  async handleSetStatus(
+    @MessageBody() data: { driverId: string; status: DriverStatus },
+    @ConnectedSocket() client: Socket,
+  ) {
+    if (data.status === DriverStatus.OFFLINE) {
+      await this.driverStatusService.removeStatus(data.driverId);
+    } else {
+      await this.driverStatusService.setStatus(data.driverId, data.status);
+    }
+    console.log(`[Status] Driver ${data.driverId} status set to ${data.status}`);
+    return { event: 'statusChanged', data: { status: data.status } };
+  }
+
+  /**
+   * Update driver location
+   */
   @SubscribeMessage('updateLocation')
   async handleUpdateLocation(
     @MessageBody() data: { driverId: string; lat: number; lng: number },
     @ConnectedSocket() client: Socket,
   ) {
+    // Store location in Redis geo set
+    await this.redisPublisher.call(
+      'GEOADD',
+      'driver-locations',
+      data.lng,
+      data.lat,
+      data.driverId,
+    );
+
+    // Update lastSeenAt in database
+    await this.driversService.updateLocationAndLastSeen(
+      data.driverId,
+      data.lat,
+      data.lng,
+    );
+
+    // Publish location update for tracking subscribers
     await this.redisPublisher.publish('driver-location', JSON.stringify(data));
+
     return { event: 'locationUpdated', data };
   }
 
@@ -89,7 +168,6 @@ export class LocationGateway extends BaseGateway {
     return { event: 'tracking', data: `Joined room tracking_${data.driverId}` };
   }
 
-
   @SubscribeMessage('findDrivers')
   async handleFindDrivers(
     @MessageBody() data: { lat: number; lng: number },
@@ -99,4 +177,16 @@ export class LocationGateway extends BaseGateway {
     return { event: 'closestDriver', data: closestDriver };
   }
 
+  /**
+   * Get driver status
+   */
+  @SubscribeMessage('getDriverStatus')
+  async handleGetDriverStatus(
+    @MessageBody() data: { driverId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const status = await this.driverStatusService.getStatus(data.driverId);
+    return { event: 'driverStatus', data: { driverId: data.driverId, status: status || DriverStatus.OFFLINE } };
+  }
 }
+
