@@ -1,25 +1,39 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  BadRequestException,
+} from '@nestjs/common';
+import { ApiOperation, ApiParam, ApiTags, ApiResponse } from '@nestjs/swagger';
+import { ParseFloatPipe } from '../common/pipes/parse-float.pipe';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { FindDriversDto } from '../drivers/dto/find-drivers.dto';
 import { LocationGateway } from '../websockets/location.gateway';
-
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService, private readonly locationGateway: LocationGateway) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly locationGateway: LocationGateway,
+  ) {}
 
-  @Post('drivers-near-me')
-  async findDriversNearMe(@Body() findDriversDto: FindDriversDto) {
-    const result = await this.locationGateway.findClosestDriver(
-      findDriversDto.lat,
-      findDriversDto.lng,
-    );
-
+  @Get('drivers-near-me/:lat/:lng')
+  @ApiTags('users')
+  @ApiOperation({ summary: 'Find drivers near a given latitude and longitude' })
+  @ApiParam({ name: 'lat', description: 'Latitude (float)', required: true })
+  @ApiParam({ name: 'lng', description: 'Longitude (float)', required: true })
+  @ApiResponse({ status: 200, description: 'List of nearby drivers' })
+  async findDriversNearMe(
+    @Param('lat', ParseFloatPipe) lat: number,
+    @Param('lng', ParseFloatPipe) lng: number,
+  ) {
+    const result = await this.locationGateway.findClosestDriver(lat, lng);
     return result;
   }
-  
-
 
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
