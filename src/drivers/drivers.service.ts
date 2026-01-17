@@ -4,7 +4,6 @@ import { Repository } from 'typeorm';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { Driver } from './entities/driver.entity';
-import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class DriversService {
@@ -45,4 +44,27 @@ export class DriversService {
   remove(id: number) {
     return `This action removes a #${id} driver`;
   }
+
+  /**
+   * Update driver's last seen timestamp
+   */
+  async updateLastSeen(driverId: string): Promise<void> {
+    await this.driversRepository.update(driverId, { lastSeenAt: new Date() });
+  }
+
+  /**
+   * Update driver's location and last seen
+   */
+  async updateLocationAndLastSeen(
+    driverId: string,
+    lat: number,
+    lng: number,
+  ): Promise<void> {
+    await this.driversRepository.update(driverId, {
+      currentLatitude: lat,
+      currentLongitude: lng,
+      lastSeenAt: new Date(),
+    });
+  }
 }
+
