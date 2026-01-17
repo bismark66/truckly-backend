@@ -14,6 +14,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { RedisModule } from './redis/redis.module';
 import { WebSocketsModule } from './websockets/websockets.module';
 import { VehiclesModule } from './vehicles/vehicles.module';
+import { ChatModule } from './chat/chat.module';
 import * as redisStore from 'cache-manager-redis-store';
 
 @Module({
@@ -56,6 +57,7 @@ import * as redisStore from 'cache-manager-redis-store';
     PaymentsModule,
     RedisModule,
     WebSocketsModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],
