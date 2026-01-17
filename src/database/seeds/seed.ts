@@ -2,7 +2,8 @@ import { DataSource } from 'typeorm';
 import { faker } from '@faker-js/faker';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole } from '../../users/entities/user.entity';
-import { Driver, DriverStatus, VehicleType } from '../../drivers/entities/driver.entity';
+import { Driver, VehicleType } from '../../drivers/entities/driver.entity';
+import { DriverStatus } from '../../drivers/driver-status.service';
 import { Fleet } from '../../fleets/entities/fleet.entity';
 import { Vehicle, VehicleStatus } from '../../vehicles/entities/vehicle.entity';
 import { Booking, BookingStatus, BookingType } from '../../bookings/entities/booking.entity';
@@ -158,9 +159,9 @@ async function seed() {
       userId: driverUser.id,
       licenseNumber: `GHA-${faker.string.alphanumeric(8).toUpperCase()}`,
       vehicleType: faker.helpers.arrayElement(Object.values(VehicleType)),
-      status: faker.helpers.arrayElement([DriverStatus.ONLINE, DriverStatus.OFFLINE]),
       currentLatitude: location.lat,
       currentLongitude: location.lng,
+      lastSeenAt: new Date(),
       isVerified: faker.datatype.boolean({ probability: 0.7 }),
     });
     const savedDriver = await driverRepo.save(driver);
@@ -168,6 +169,10 @@ async function seed() {
 
     // Add driver location to Redis for geospatial queries
     await redis.call('GEOADD', 'driver-locations', location.lng, location.lat, savedDriver.id);
+
+    // Set initial status in Redis (randomize ONLINE/OFFLINE)
+    const status = faker.helpers.arrayElement([DriverStatus.ONLINE, DriverStatus.OFFLINE]);
+    await redis.hset('driver-status', savedDriver.id, status);
   }
 
   console.log(`✅ Created ${drivers.length} drivers (also added to Redis)\n`);
