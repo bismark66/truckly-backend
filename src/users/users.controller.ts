@@ -22,7 +22,7 @@ export class UsersController {
   ) {}
 
   @Get('drivers-near-me/:lat/:lng')
-  @ApiTags('users')
+  // @ApiTags('users')
   @ApiOperation({ summary: 'Find drivers near a given latitude and longitude' })
   @ApiParam({ name: 'lat', description: 'Latitude (float)', required: true })
   @ApiParam({ name: 'lng', description: 'Longitude (float)', required: true })
