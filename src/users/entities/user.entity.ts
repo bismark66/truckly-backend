@@ -34,9 +34,32 @@ export class User {
   })
   role: UserRole;
 
+  @Column({ nullable: true })
+  avatar: string;
+
+  @Column({ default: false })
+  isVerified: boolean;
+
+  @Column({ nullable: true, unique: true })
+  googleId: string;
+
+  @Column({ nullable: true, select: false })
+  refreshToken: string;
+
+  @Column({ nullable: true, select: false })
+  resetPasswordToken: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  resetPasswordExpires: Date;
+
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  // Computed property for API compatibility
+  get fullName(): string {
+    return `${this.firstName} ${this.lastName}`.trim();
+  }
 }
