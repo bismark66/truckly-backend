@@ -4,7 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { User, UserRole } from '../../users/entities/user.entity';
 import { Driver, VehicleType } from '../../drivers/entities/driver.entity';
 import { DriverStatus } from '../../drivers/driver-status.service';
-import { Fleet } from '../../fleets/entities/fleet.entity';
+import { FleetOwner } from '../../fleet-owners/entities/fleet-owner.entity';
 import { Vehicle, VehicleStatus } from '../../vehicles/entities/vehicle.entity';
 import { Booking, BookingStatus, BookingType } from '../../bookings/entities/booking.entity';
 import { Payment, PaymentStatus } from '../../payments/entities/payment.entity';
@@ -48,7 +48,7 @@ async function seed() {
     username: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres',
     database: process.env.DB_NAME || 'truckly',
-    entities: [User, Driver, Fleet, Vehicle, Booking, Payment, Document],
+    entities: [User, Driver, FleetOwner, Vehicle, Booking, Payment, Document],
     synchronize: false,
   });
 
@@ -65,7 +65,7 @@ async function seed() {
   // Get repositories
   const userRepo = dataSource.getRepository(User);
   const driverRepo = dataSource.getRepository(Driver);
-  const fleetRepo = dataSource.getRepository(Fleet);
+  const fleetOwnerRepo = dataSource.getRepository(FleetOwner);
   const vehicleRepo = dataSource.getRepository(Vehicle);
   const bookingRepo = dataSource.getRepository(Booking);
   const paymentRepo = dataSource.getRepository(Payment);
@@ -77,7 +77,7 @@ async function seed() {
   await dataSource.query('TRUNCATE TABLE "booking" CASCADE');
   await dataSource.query('TRUNCATE TABLE "document" CASCADE');
   await dataSource.query('TRUNCATE TABLE "vehicle" CASCADE');
-  await dataSource.query('TRUNCATE TABLE "fleet" CASCADE');
+  await dataSource.query('TRUNCATE TABLE "fleet_owner" CASCADE');
   await dataSource.query('TRUNCATE TABLE "driver" CASCADE');
   await dataSource.query('TRUNCATE TABLE "user" CASCADE');
   // Clear Redis driver locations
@@ -177,31 +177,31 @@ async function seed() {
 
   console.log(`✅ Created ${drivers.length} drivers (also added to Redis)\n`);
 
-  // ============ SEED FLEETS ============
-  console.log('🏢 Seeding fleets...');
-  const fleets: Fleet[] = [];
+  // ============ SEED FLEET OWNERS ============
+  console.log('🏢 Seeding fleet owners...');
+  const fleetOwners: FleetOwner[] = [];
 
-  for (const fleetOwner of fleetOwnerUsers) {
-    const fleet = fleetRepo.create({
-      userId: fleetOwner.id,
+  for (const fleetOwnerUser of fleetOwnerUsers) {
+    const fleetOwner = fleetOwnerRepo.create({
+      userId: fleetOwnerUser.id,
       companyName: `${faker.company.name()} Transport`,
       registrationNumber: `RC-${faker.string.numeric(6)}`,
     });
-    fleets.push(await fleetRepo.save(fleet));
+    fleetOwners.push(await fleetOwnerRepo.save(fleetOwner));
   }
 
-  console.log(`✅ Created ${fleets.length} fleets\n`);
+  console.log(`✅ Created ${fleetOwners.length} fleet owners\n`);
 
   // ============ SEED VEHICLES ============
   console.log('🚚 Seeding vehicles...');
   const vehicles: Vehicle[] = [];
 
   for (let i = 0; i < 10; i++) {
-    const fleet = faker.helpers.arrayElement(fleets);
+    const fleetOwner = faker.helpers.arrayElement(fleetOwners);
     const assignedDriver = i < 3 ? drivers[i] : null; // Assign first 3 vehicles to drivers
 
     const vehicle = vehicleRepo.create({
-      fleetId: fleet.id,
+      fleetOwnerId: fleetOwner.id,
       licensePlate: generateLicensePlate(),
       type: faker.helpers.arrayElement(Object.values(VehicleType)),
       capacity: faker.number.float({ min: 5, max: 50, fractionDigits: 1 }),
@@ -309,7 +309,7 @@ async function seed() {
   console.log('Summary:');
   console.log(`  👤 Users: ${users.length}`);
   console.log(`  🚗 Drivers: ${drivers.length}`);
-  console.log(`  🏢 Fleets: ${fleets.length}`);
+  console.log(`  🏢 Fleet Owners: ${fleetOwners.length}`);
   console.log(`  🚚 Vehicles: ${vehicles.length}`);
   console.log(`  📦 Bookings: ${bookings.length}`);
   console.log(`  💳 Payments: ${payments.length}`);
