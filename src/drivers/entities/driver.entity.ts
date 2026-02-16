@@ -43,6 +43,18 @@ export class Driver {
   @Column({ default: false })
   isVerified: boolean;
 
+  @Column({ default: false })
+  isOnline: boolean;
+
+  @Column({ type: 'decimal', precision: 3, scale: 2, default: 0.00 })
+  rating: number;
+
+  @Column({ type: 'int', default: 0 })
+  totalTrips: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0.00 })
+  totalEarnings: number;
+
   @CreateDateColumn()
   createdAt: Date;
 
