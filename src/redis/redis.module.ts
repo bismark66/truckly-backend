@@ -9,20 +9,34 @@ import Redis from 'ioredis';
     {
       provide: 'REDIS_CLIENT',
       useFactory: (configService: ConfigService) => {
-        return new Redis({
+        const redisConfig: any = {
           host: configService.get<string>('REDIS_HOST'),
           port: configService.get<number>('REDIS_PORT'),
-        });
+        };
+        
+        const redisPassword = configService.get<string>('REDIS_PASSWORD');
+        if (redisPassword) {
+          redisConfig.password = redisPassword;
+        }
+        
+        return new Redis(redisConfig);
       },
       inject: [ConfigService],
     },
     {
       provide: 'REDIS_SUBSCRIBER',
       useFactory: (configService: ConfigService) => {
-        return new Redis({
+        const redisConfig: any = {
           host: configService.get<string>('REDIS_HOST'),
           port: configService.get<number>('REDIS_PORT'),
-        });
+        };
+        
+        const redisPassword = configService.get<string>('REDIS_PASSWORD');
+        if (redisPassword) {
+          redisConfig.password = redisPassword;
+        }
+        
+        return new Redis(redisConfig);
       },
       inject: [ConfigService],
     },
