@@ -1,5 +1,21 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+} from '@nestjs/swagger';
 import { FleetOwnersService } from './fleet-owners.service';
 import { CreateFleetOwnerDto } from './dto/create-fleet-owner.dto';
 import { UpdateFleetOwnerDto } from './dto/update-fleet-owner.dto';
@@ -19,7 +35,10 @@ export class FleetOwnersController {
   @Roles(UserRole.FLEET_OWNER)
   @ApiOperation({ summary: 'Create fleet owner profile' })
   @ApiResponse({ status: 201, description: 'Fleet owner created successfully' })
-  @ApiResponse({ status: 400, description: 'Fleet owner already exists for this user' })
+  @ApiResponse({
+    status: 400,
+    description: 'Fleet owner already exists for this user',
+  })
   create(@Request() req, @Body() createFleetOwnerDto: CreateFleetOwnerDto) {
     return this.fleetOwnersService.create(req.user.userId, createFleetOwnerDto);
   }
@@ -50,12 +69,19 @@ export class FleetOwnersController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateFleetOwnerDto: UpdateFleetOwnerDto) {
-    return this.fleetOwnersService.update(+id, updateFleetOwnerDto);
+  @Roles(UserRole.FLEET_OWNER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update fleet owner profile' })
+  @ApiParam({ name: 'id', description: 'Fleet Owner ID' })
+  @ApiResponse({ status: 200, description: 'Fleet owner updated successfully' })
+  update(
+    @Param('id') id: string,
+    @Body() updateFleetOwnerDto: UpdateFleetOwnerDto,
+  ) {
+    return this.fleetOwnersService.update(id, updateFleetOwnerDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.fleetOwnersService.remove(+id);
+    return this.fleetOwnersService.remove(id);
   }
 }
