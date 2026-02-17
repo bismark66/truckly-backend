@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, Up
 import { User } from '../../users/entities/user.entity';
 import { Driver } from '../../drivers/entities/driver.entity';
 import { Vehicle } from '../../vehicles/entities/vehicle.entity';
+import type { CargoRequirements } from '../../transport/factory';
 
 export enum BookingStatus {
   PENDING = 'PENDING',
@@ -65,6 +66,9 @@ export class Booking {
 
   @Column({ nullable: true })
   scheduledTime: Date;
+
+  @Column({ type: 'jsonb', nullable: true })
+  cargoRequirements: CargoRequirements;
 
   @CreateDateColumn()
   createdAt: Date;
