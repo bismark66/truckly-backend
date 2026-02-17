@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
@@ -52,14 +53,17 @@ export class ChatGateway extends BaseGateway {
   @SubscribeMessage('joinChat')
   async handleJoinChat(
     @MessageBody()
-    data: { conversationId: string; userId: string; userType: 'driver' | 'customer' },
+    data: {
+      conversationId: string;
+      userId: string;
+      userType: 'driver' | 'customer';
+    },
     @ConnectedSocket() client: Socket,
   ) {
-    client.join(`chat_${data.conversationId}`);
+    void client.join(`chat_${data.conversationId}`);
     client
       .to(`chat_${data.conversationId}`)
       .emit('userJoined', { userId: data.userId, userType: data.userType });
-    
     return {
       event: 'joinedChat',
       data: { conversationId: data.conversationId },
@@ -80,6 +84,10 @@ export class ChatGateway extends BaseGateway {
     },
     @ConnectedSocket() client: Socket,
   ) {
+    if (!Object.values(SenderType).includes(data.senderType as SenderType)) {
+      return { event: 'error', data: { message: 'Invalid sender type' } };
+    }
+
     // Save message to database
     const message = await this.chatService.saveMessage(
       data.conversationId,
@@ -195,19 +203,17 @@ export class ChatGateway extends BaseGateway {
     return {
       event: 'messageHistory',
       data: {
-        messages: messages
-          .reverse()
-          .map((m) => ({
-            id: m.id,
-            conversationId: m.conversationId,
-            senderId: m.senderId,
-            senderType: m.senderType,
-            content: m.content,
-            status: m.status,
-            sentAt: m.sentAt.toISOString(),
-            deliveredAt: m.deliveredAt?.toISOString(),
-            readAt: m.readAt?.toISOString(),
-          })),
+        messages: messages.reverse().map((m) => ({
+          id: m.id,
+          conversationId: m.conversationId,
+          senderId: m.senderId,
+          senderType: m.senderType,
+          content: m.content,
+          status: m.status,
+          sentAt: m.sentAt.toISOString(),
+          deliveredAt: m.deliveredAt?.toISOString(),
+          readAt: m.readAt?.toISOString(),
+        })),
       },
     };
   }
@@ -230,4 +236,3 @@ export class ChatGateway extends BaseGateway {
     };
   }
 }
-
