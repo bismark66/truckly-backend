@@ -24,8 +24,11 @@
     "migration:run": "npm run typeorm migration:run",
     "migration:revert": "npm run typeorm migration:revert",
     "migration:show": "npm run typeorm migration:show",
+    "schema:drop": "npm run typeorm schema:drop",
+    "schema:sync": "npm run typeorm schema:sync",
+    "db:reset": "npm run schema:drop && npm run migration:run && npm run seed",
+    "db:clear": "ts-node src/database/scripts/clear-database.ts",
     "seed": "ts-node src/database/seeds/seed.ts"
-
   },
   "dependencies": {
     "@nestjs/cache-manager": "^3.0.1",
