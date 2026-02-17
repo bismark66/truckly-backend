@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan } from 'typeorm';
+import { Repository, MoreThan, Not } from 'typeorm';
 import { Conversation } from './entities/conversation.entity';
 import { Message, MessageStatus, SenderType } from './entities/message.entity';
 
@@ -21,6 +21,12 @@ export class ChatService {
     customerId: string,
     driverId: string,
   ): Promise<Conversation> {
+
+    const isExisting = await this.conversationRepo.findOne({
+      where: { bookingId },
+    });
+    if (isExisting) return isExisting;
+
     const conversation = this.conversationRepo.create({
       bookingId,
       customerId,
@@ -124,7 +130,7 @@ export class ChatService {
     return this.messageRepo.count({
       where: {
         conversationId,
-        senderId: userId,
+        senderId: Not(userId),
         status: MessageStatus.SENT,
       },
     });
