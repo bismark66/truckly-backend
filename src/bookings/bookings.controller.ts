@@ -15,10 +15,7 @@ import { BookingStatus } from './entities/booking.entity';
 @Controller('bookings')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class BookingsController {
-  constructor(
-    private readonly bookingsService: BookingsService,
-  ) {}
-
+  constructor(private readonly bookingsService: BookingsService) {}
 
   @Post()
   @Roles(UserRole.CUSTOMER)
@@ -59,7 +56,7 @@ export class BookingsController {
   @ApiResponse({ status: 200, description: 'Booking accepted' })
   @ApiResponse({ status: 400, description: 'Booking cannot be accepted' })
   accept(@Param('id') id: string, @Request() req) {
-    // Need to resolve driverId from userId. 
+    // Need to resolve driverId from userId.
     // For MVP, let's assume the driver sends their driverId or we fetch it.
     // Ideally: const driver = await driversService.findOneByUserId(req.user.userId);
     // return this.bookingsService.acceptBooking(id, driver.id);
@@ -67,7 +64,9 @@ export class BookingsController {
     // I'll assume for now we pass driverId in body or just use userId as placeholder if schema allows,
     // but schema expects driverId (uuid of Driver entity).
     // I should probably export DriversService and import DriversModule.
-    return { message: 'Driver acceptance logic requires DriversService integration' };
+    return {
+      message: 'Driver acceptance logic requires DriversService integration',
+    };
   }
 
   @Patch(':id/status')
@@ -79,7 +78,13 @@ export class BookingsController {
       properties: {
         status: {
           type: 'string',
-          enum: ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
+          enum: [
+            'PENDING',
+            'ACCEPTED',
+            'IN_PROGRESS',
+            'COMPLETED',
+            'CANCELLED',
+          ],
         },
       },
     },
@@ -87,5 +92,36 @@ export class BookingsController {
   @ApiResponse({ status: 200, description: 'Status updated' })
   updateStatus(@Param('id') id: string, @Body('status') status: BookingStatus) {
     return this.bookingsService.updateStatus(id, status);
+  }
+
+  @Get(':id/suggested-vehicles')
+  @Roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.DRIVER)
+  @ApiOperation({
+    summary: 'Get suggested vehicles for booking based on cargo requirements',
+  })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of suggested vehicles ranked by match score',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          vehicle: { type: 'object' },
+          matchScore: { type: 'number', example: 85 },
+          canHandle: { type: 'boolean', example: true },
+          reason: { type: 'string', example: 'Optimal capacity utilization' },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Booking does not have cargo requirements',
+  })
+  @ApiResponse({ status: 404, description: 'Booking not found' })
+  getSuggestedVehicles(@Param('id') id: string) {
+    return this.bookingsService.suggestVehicles(id);
   }
 }
