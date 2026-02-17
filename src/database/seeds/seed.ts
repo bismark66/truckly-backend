@@ -9,6 +9,7 @@ import { Vehicle, VehicleStatus } from '../../vehicles/entities/vehicle.entity';
 import { Booking, BookingStatus, BookingType } from '../../bookings/entities/booking.entity';
 import { Payment, PaymentStatus } from '../../payments/entities/payment.entity';
 import { Document, DocumentType } from '../../documents/entities/document.entity';
+import { CargoType } from '../../transport/factory';
 import * as dotenv from 'dotenv';
 import Redis from 'ioredis';
 
@@ -36,6 +37,114 @@ function generateLicensePlate(): string {
   const number = faker.number.int({ min: 1000, max: 9999 });
   const suffix = faker.number.int({ min: 10, max: 99 });
   return `${region}-${number}-${suffix}`;
+}
+
+/**
+ * Generate realistic cargo requirements based on vehicle type
+ */
+function generateCargoRequirements(vehicleType?: VehicleType) {
+  // 30% chance to not include cargo requirements (backward compatibility)
+  if (faker.datatype.boolean({ probability: 0.3 })) {
+    return undefined;
+  }
+
+  // If vehicle type is provided, generate matching cargo requirements
+  if (vehicleType) {
+    switch (vehicleType) {
+      case VehicleType.TIPPER_TRUCK:
+        return {
+          weight: faker.number.int({ min: 3000, max: 15000 }),
+          volume: faker.number.float({ min: 10, max: 30, fractionDigits: 2 }),
+          cargoType: faker.helpers.arrayElement([CargoType.BULK, CargoType.MINING]),
+          requiresDump: true,
+          specialRequirements: faker.helpers.arrayElement([
+            'Sand delivery for construction',
+            'Gravel for road work',
+            'Mining materials',
+            'Soil for landscaping',
+          ]),
+        };
+
+      case VehicleType.BUS:
+        return {
+          weight: faker.number.int({ min: 1000, max: 4000 }), // Estimated passenger weight
+          cargoType: CargoType.PASSENGERS,
+          requiresPassengerSeats: true,
+          specialRequirements: faker.helpers.arrayElement([
+            'Staff transport',
+            'School trip',
+            'Wedding guests',
+            'Corporate event transport',
+          ]),
+        };
+
+      case VehicleType.TRAILER:
+        return {
+          weight: faker.number.int({ min: 5000, max: 25000 }),
+          volume: faker.number.float({ min: 20, max: 60, fractionDigits: 2 }),
+          cargoType: faker.helpers.arrayElement([CargoType.PACKAGED, CargoType.GENERAL]),
+          specialRequirements: faker.helpers.arrayElement([
+            'Electronics shipment',
+            'Furniture delivery',
+            'General cargo',
+            'Packaged goods',
+          ]),
+        };
+
+      case VehicleType.MINING_TRANSPORT:
+        return {
+          weight: faker.number.int({ min: 10000, max: 40000 }),
+          volume: faker.number.float({ min: 15, max: 50, fractionDigits: 2 }),
+          cargoType: CargoType.MINING,
+          requiresDump: faker.datatype.boolean(),
+          specialRequirements: faker.helpers.arrayElement([
+            'Heavy mining equipment',
+            'Ore transport',
+            'Mining machinery',
+            'Excavated materials',
+          ]),
+        };
+
+      default: // OTHER or unknown
+        return {
+          weight: faker.number.int({ min: 2000, max: 10000 }),
+          volume: faker.number.float({ min: 5, max: 25, fractionDigits: 2 }),
+          cargoType: CargoType.GENERAL,
+          specialRequirements: 'General freight',
+        };
+    }
+  }
+
+  // Random cargo requirements if no vehicle type specified
+  const cargoType = faker.helpers.arrayElement(Object.values(CargoType));
+  const baseRequirement: any = {
+    weight: faker.number.int({ min: 1000, max: 20000 }),
+    volume: faker.number.float({ min: 5, max: 40, fractionDigits: 2 }),
+    cargoType,
+  };
+
+  // Add specific requirements based on cargo type
+  switch (cargoType) {
+    case CargoType.BULK:
+      baseRequirement.requiresDump = true;
+      baseRequirement.specialRequirements = 'Loose bulk materials';
+      break;
+    case CargoType.PASSENGERS:
+      baseRequirement.requiresPassengerSeats = true;
+      baseRequirement.specialRequirements = 'Passenger transport';
+      break;
+    case CargoType.PACKAGED:
+      baseRequirement.specialRequirements = 'Packaged goods';
+      break;
+    case CargoType.MINING:
+      baseRequirement.requiresDump = faker.datatype.boolean();
+      baseRequirement.specialRequirements = 'Mining-related cargo';
+      break;
+    default:
+      baseRequirement.specialRequirements = 'General freight';
+  }
+
+  return baseRequirement;
 }
 
 async function seed() {
@@ -225,6 +334,12 @@ async function seed() {
     const vehicle = faker.helpers.arrayElement(vehicles);
     const status = faker.helpers.arrayElement(Object.values(BookingStatus));
 
+    // Generate cargo requirements based on vehicle type if booking is assigned
+    const cargoRequirements =
+      status !== BookingStatus.PENDING
+        ? generateCargoRequirements(vehicle.type)
+        : generateCargoRequirements(); // Random cargo for pending bookings
+
     const booking = bookingRepo.create({
       customerId: customer.id,
       driverId: status !== BookingStatus.PENDING ? driver.id : undefined,
@@ -235,11 +350,12 @@ async function seed() {
       type: faker.helpers.arrayElement(Object.values(BookingType)),
       price: parseFloat(faker.commerce.price({ min: 100, max: 5000, dec: 2 })),
       scheduledTime: status === BookingStatus.PENDING ? faker.date.future() : undefined,
+      cargoRequirements, // Add cargo requirements
     });
     bookings.push(await bookingRepo.save(booking));
   }
 
-  console.log(`✅ Created ${bookings.length} bookings\n`);
+  console.log(`✅ Created ${bookings.length} bookings (with cargo requirements)\n`);
 
   // ============ SEED PAYMENTS ============
   console.log('💳 Seeding payments...');
