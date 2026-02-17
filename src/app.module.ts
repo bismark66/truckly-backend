@@ -32,13 +32,13 @@ import * as redisStore from 'cache-manager-redis-store';
           port: configService.get<number>('REDIS_PORT'),
           ttl: 600, // 10 minutes
         };
-        
+
         // Add password if configured
         const redisPassword = configService.get<string>('REDIS_PASSWORD');
         if (redisPassword) {
           redisConfig.password = redisPassword;
         }
-        
+
         return redisConfig;
       },
       inject: [ConfigService],
