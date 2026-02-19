@@ -7,7 +7,9 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log'], // Only log errors, warnings, and standard logs
+  });
   
   // Enable CORS first
   app.enableCors();

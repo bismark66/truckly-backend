@@ -1,12 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
-export enum DriverStatus {
-  ONLINE = 'ONLINE',
-  OFFLINE = 'OFFLINE',
-  ON_TRIP = 'ON_TRIP',
-}
-
 export enum VehicleType {
   TRAILER = 'TRAILER',
   TIPPER_TRUCK = 'TIPPER_TRUCK',
@@ -37,21 +31,29 @@ export class Driver {
   })
   vehicleType: VehicleType;
 
-  @Column({
-    type: 'enum',
-    enum: DriverStatus,
-    default: DriverStatus.OFFLINE,
-  })
-  status: DriverStatus;
-
   @Column({ type: 'float', nullable: true })
   currentLatitude: number;
 
   @Column({ type: 'float', nullable: true })
   currentLongitude: number;
 
+  @Column({ type: 'timestamp', nullable: true })
+  lastSeenAt: Date;
+
   @Column({ default: false })
   isVerified: boolean;
+
+  @Column({ default: false })
+  isOnline: boolean;
+
+  @Column({ type: 'decimal', precision: 3, scale: 2, default: 0.00 })
+  rating: number;
+
+  @Column({ type: 'int', default: 0 })
+  totalTrips: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0.00 })
+  totalEarnings: number;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -59,3 +61,4 @@ export class Driver {
   @UpdateDateColumn()
   updatedAt: Date;
 }
+

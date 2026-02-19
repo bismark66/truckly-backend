@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   NestInterceptor,
@@ -13,6 +15,7 @@ export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger(LoggingInterceptor.name);
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const req = context.switchToHttp().getRequest();
     const method = req.method;
     const url = req.url;
@@ -21,11 +24,7 @@ export class LoggingInterceptor implements NestInterceptor {
     return next
       .handle()
       .pipe(
-        tap(() =>
-          this.logger.log(
-            `${method} ${url} ${Date.now() - now}ms`,
-          ),
-        ),
+        tap(() => this.logger.log(`${method} ${url} ${Date.now() - now}ms`)),
       );
   }
 }

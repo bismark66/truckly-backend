@@ -1,7 +1,7 @@
 import { IsNotEmpty, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class CreateFleetDto {
+export class CreateFleetOwnerDto {
   @ApiProperty({ example: 'Accra Transport Services Ltd', description: 'Company name' })
   @IsString()
   @IsNotEmpty()

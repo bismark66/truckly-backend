@@ -7,13 +7,18 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { LogisticsService } from '../transport/logistics.service';
+import { CargoRequirementsDto } from '../bookings/dto/cargo-requirements.dto';
 
 @ApiTags('Vehicles')
 @ApiBearerAuth()
 @Controller('vehicles')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class VehiclesController {
-  constructor(private readonly vehiclesService: VehiclesService) {}
+  constructor(
+    private readonly vehiclesService: VehiclesService,
+    private readonly logisticsService: LogisticsService,
+  ) {}
 
   @Post()
   @Roles(UserRole.FLEET_OWNER)
@@ -49,5 +54,34 @@ export class VehiclesController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.vehiclesService.remove(+id);
+  }
+
+  @Post(':id/cargo-check')
+  @Roles(UserRole.FLEET_OWNER, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Check if vehicle can handle specific cargo requirements',
+  })
+  @ApiParam({ name: 'id', description: 'Vehicle ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cargo compatibility check result',
+    schema: {
+      type: 'object',
+      properties: {
+        canHandle: { type: 'boolean', example: true },
+        matchScore: { type: 'number', example: 85 },
+        reason: { type: 'string', example: 'Vehicle capacity sufficient' },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Vehicle not found' })
+  async checkCargoCompatibility(
+    @Param('id') id: string,
+    @Body() cargoRequirements: CargoRequirementsDto,
+  ) {
+    return this.logisticsService.validateVehicleForBooking(
+      id,
+      cargoRequirements,
+    );
   }
 }

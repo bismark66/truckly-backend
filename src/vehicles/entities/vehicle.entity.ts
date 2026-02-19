@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
-import { Fleet } from '../../fleets/entities/fleet.entity';
+import { FleetOwner } from '../../fleet-owners/entities/fleet-owner.entity';
 import { Driver, VehicleType } from '../../drivers/entities/driver.entity';
 
 export { VehicleType } from '../../drivers/entities/driver.entity';
@@ -15,11 +15,11 @@ export class Vehicle {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Fleet, (fleet) => fleet.vehicles)
-  fleet: Fleet;
+  @ManyToOne(() => FleetOwner, (fleetOwner) => fleetOwner.vehicles)
+  fleetOwner: FleetOwner;
 
   @Column()
-  fleetId: string;
+  fleetOwnerId: string;
 
   @Column()
   licensePlate: string;

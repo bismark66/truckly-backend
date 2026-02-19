@@ -2,12 +2,14 @@ import { DataSource } from 'typeorm';
 import { faker } from '@faker-js/faker';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole } from '../../users/entities/user.entity';
-import { Driver, DriverStatus, VehicleType } from '../../drivers/entities/driver.entity';
-import { Fleet } from '../../fleets/entities/fleet.entity';
+import { Driver, VehicleType } from '../../drivers/entities/driver.entity';
+import { DriverStatus } from '../../drivers/driver-status.service';
+import { FleetOwner } from '../../fleet-owners/entities/fleet-owner.entity';
 import { Vehicle, VehicleStatus } from '../../vehicles/entities/vehicle.entity';
 import { Booking, BookingStatus, BookingType } from '../../bookings/entities/booking.entity';
 import { Payment, PaymentStatus } from '../../payments/entities/payment.entity';
 import { Document, DocumentType } from '../../documents/entities/document.entity';
+import { CargoType } from '../../transport/factory';
 import * as dotenv from 'dotenv';
 import Redis from 'ioredis';
 
@@ -37,6 +39,114 @@ function generateLicensePlate(): string {
   return `${region}-${number}-${suffix}`;
 }
 
+/**
+ * Generate realistic cargo requirements based on vehicle type
+ */
+function generateCargoRequirements(vehicleType?: VehicleType) {
+  // 30% chance to not include cargo requirements (backward compatibility)
+  if (faker.datatype.boolean({ probability: 0.3 })) {
+    return undefined;
+  }
+
+  // If vehicle type is provided, generate matching cargo requirements
+  if (vehicleType) {
+    switch (vehicleType) {
+      case VehicleType.TIPPER_TRUCK:
+        return {
+          weight: faker.number.int({ min: 3000, max: 15000 }),
+          volume: faker.number.float({ min: 10, max: 30, fractionDigits: 2 }),
+          cargoType: faker.helpers.arrayElement([CargoType.BULK, CargoType.MINING]),
+          requiresDump: true,
+          specialRequirements: faker.helpers.arrayElement([
+            'Sand delivery for construction',
+            'Gravel for road work',
+            'Mining materials',
+            'Soil for landscaping',
+          ]),
+        };
+
+      case VehicleType.BUS:
+        return {
+          weight: faker.number.int({ min: 1000, max: 4000 }), // Estimated passenger weight
+          cargoType: CargoType.PASSENGERS,
+          requiresPassengerSeats: true,
+          specialRequirements: faker.helpers.arrayElement([
+            'Staff transport',
+            'School trip',
+            'Wedding guests',
+            'Corporate event transport',
+          ]),
+        };
+
+      case VehicleType.TRAILER:
+        return {
+          weight: faker.number.int({ min: 5000, max: 25000 }),
+          volume: faker.number.float({ min: 20, max: 60, fractionDigits: 2 }),
+          cargoType: faker.helpers.arrayElement([CargoType.PACKAGED, CargoType.GENERAL]),
+          specialRequirements: faker.helpers.arrayElement([
+            'Electronics shipment',
+            'Furniture delivery',
+            'General cargo',
+            'Packaged goods',
+          ]),
+        };
+
+      case VehicleType.MINING_TRANSPORT:
+        return {
+          weight: faker.number.int({ min: 10000, max: 40000 }),
+          volume: faker.number.float({ min: 15, max: 50, fractionDigits: 2 }),
+          cargoType: CargoType.MINING,
+          requiresDump: faker.datatype.boolean(),
+          specialRequirements: faker.helpers.arrayElement([
+            'Heavy mining equipment',
+            'Ore transport',
+            'Mining machinery',
+            'Excavated materials',
+          ]),
+        };
+
+      default: // OTHER or unknown
+        return {
+          weight: faker.number.int({ min: 2000, max: 10000 }),
+          volume: faker.number.float({ min: 5, max: 25, fractionDigits: 2 }),
+          cargoType: CargoType.GENERAL,
+          specialRequirements: 'General freight',
+        };
+    }
+  }
+
+  // Random cargo requirements if no vehicle type specified
+  const cargoType = faker.helpers.arrayElement(Object.values(CargoType));
+  const baseRequirement: any = {
+    weight: faker.number.int({ min: 1000, max: 20000 }),
+    volume: faker.number.float({ min: 5, max: 40, fractionDigits: 2 }),
+    cargoType,
+  };
+
+  // Add specific requirements based on cargo type
+  switch (cargoType) {
+    case CargoType.BULK:
+      baseRequirement.requiresDump = true;
+      baseRequirement.specialRequirements = 'Loose bulk materials';
+      break;
+    case CargoType.PASSENGERS:
+      baseRequirement.requiresPassengerSeats = true;
+      baseRequirement.specialRequirements = 'Passenger transport';
+      break;
+    case CargoType.PACKAGED:
+      baseRequirement.specialRequirements = 'Packaged goods';
+      break;
+    case CargoType.MINING:
+      baseRequirement.requiresDump = faker.datatype.boolean();
+      baseRequirement.specialRequirements = 'Mining-related cargo';
+      break;
+    default:
+      baseRequirement.specialRequirements = 'General freight';
+  }
+
+  return baseRequirement;
+}
+
 async function seed() {
   console.log('🌱 Starting database seeding...\n');
 
@@ -47,7 +157,7 @@ async function seed() {
     username: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres',
     database: process.env.DB_NAME || 'truckly',
-    entities: [User, Driver, Fleet, Vehicle, Booking, Payment, Document],
+    entities: [User, Driver, FleetOwner, Vehicle, Booking, Payment, Document],
     synchronize: false,
   });
 
@@ -64,7 +174,7 @@ async function seed() {
   // Get repositories
   const userRepo = dataSource.getRepository(User);
   const driverRepo = dataSource.getRepository(Driver);
-  const fleetRepo = dataSource.getRepository(Fleet);
+  const fleetOwnerRepo = dataSource.getRepository(FleetOwner);
   const vehicleRepo = dataSource.getRepository(Vehicle);
   const bookingRepo = dataSource.getRepository(Booking);
   const paymentRepo = dataSource.getRepository(Payment);
@@ -76,7 +186,7 @@ async function seed() {
   await dataSource.query('TRUNCATE TABLE "booking" CASCADE');
   await dataSource.query('TRUNCATE TABLE "document" CASCADE');
   await dataSource.query('TRUNCATE TABLE "vehicle" CASCADE');
-  await dataSource.query('TRUNCATE TABLE "fleet" CASCADE');
+  await dataSource.query('TRUNCATE TABLE "fleet_owner" CASCADE');
   await dataSource.query('TRUNCATE TABLE "driver" CASCADE');
   await dataSource.query('TRUNCATE TABLE "user" CASCADE');
   // Clear Redis driver locations
@@ -158,9 +268,9 @@ async function seed() {
       userId: driverUser.id,
       licenseNumber: `GHA-${faker.string.alphanumeric(8).toUpperCase()}`,
       vehicleType: faker.helpers.arrayElement(Object.values(VehicleType)),
-      status: faker.helpers.arrayElement([DriverStatus.ONLINE, DriverStatus.OFFLINE]),
       currentLatitude: location.lat,
       currentLongitude: location.lng,
+      lastSeenAt: new Date(),
       isVerified: faker.datatype.boolean({ probability: 0.7 }),
     });
     const savedDriver = await driverRepo.save(driver);
@@ -168,35 +278,39 @@ async function seed() {
 
     // Add driver location to Redis for geospatial queries
     await redis.call('GEOADD', 'driver-locations', location.lng, location.lat, savedDriver.id);
+
+    // Set initial status in Redis (randomize ONLINE/OFFLINE)
+    const status = faker.helpers.arrayElement([DriverStatus.ONLINE, DriverStatus.OFFLINE]);
+    await redis.hset('driver-status', savedDriver.id, status);
   }
 
   console.log(`✅ Created ${drivers.length} drivers (also added to Redis)\n`);
 
-  // ============ SEED FLEETS ============
-  console.log('🏢 Seeding fleets...');
-  const fleets: Fleet[] = [];
+  // ============ SEED FLEET OWNERS ============
+  console.log('🏢 Seeding fleet owners...');
+  const fleetOwners: FleetOwner[] = [];
 
-  for (const fleetOwner of fleetOwnerUsers) {
-    const fleet = fleetRepo.create({
-      userId: fleetOwner.id,
+  for (const fleetOwnerUser of fleetOwnerUsers) {
+    const fleetOwner = fleetOwnerRepo.create({
+      userId: fleetOwnerUser.id,
       companyName: `${faker.company.name()} Transport`,
       registrationNumber: `RC-${faker.string.numeric(6)}`,
     });
-    fleets.push(await fleetRepo.save(fleet));
+    fleetOwners.push(await fleetOwnerRepo.save(fleetOwner));
   }
 
-  console.log(`✅ Created ${fleets.length} fleets\n`);
+  console.log(`✅ Created ${fleetOwners.length} fleet owners\n`);
 
   // ============ SEED VEHICLES ============
   console.log('🚚 Seeding vehicles...');
   const vehicles: Vehicle[] = [];
 
   for (let i = 0; i < 10; i++) {
-    const fleet = faker.helpers.arrayElement(fleets);
+    const fleetOwner = faker.helpers.arrayElement(fleetOwners);
     const assignedDriver = i < 3 ? drivers[i] : null; // Assign first 3 vehicles to drivers
 
     const vehicle = vehicleRepo.create({
-      fleetId: fleet.id,
+      fleetOwnerId: fleetOwner.id,
       licensePlate: generateLicensePlate(),
       type: faker.helpers.arrayElement(Object.values(VehicleType)),
       capacity: faker.number.float({ min: 5, max: 50, fractionDigits: 1 }),
@@ -220,6 +334,12 @@ async function seed() {
     const vehicle = faker.helpers.arrayElement(vehicles);
     const status = faker.helpers.arrayElement(Object.values(BookingStatus));
 
+    // Generate cargo requirements based on vehicle type if booking is assigned
+    const cargoRequirements =
+      status !== BookingStatus.PENDING
+        ? generateCargoRequirements(vehicle.type)
+        : generateCargoRequirements(); // Random cargo for pending bookings
+
     const booking = bookingRepo.create({
       customerId: customer.id,
       driverId: status !== BookingStatus.PENDING ? driver.id : undefined,
@@ -230,11 +350,12 @@ async function seed() {
       type: faker.helpers.arrayElement(Object.values(BookingType)),
       price: parseFloat(faker.commerce.price({ min: 100, max: 5000, dec: 2 })),
       scheduledTime: status === BookingStatus.PENDING ? faker.date.future() : undefined,
+      cargoRequirements, // Add cargo requirements
     });
     bookings.push(await bookingRepo.save(booking));
   }
 
-  console.log(`✅ Created ${bookings.length} bookings\n`);
+  console.log(`✅ Created ${bookings.length} bookings (with cargo requirements)\n`);
 
   // ============ SEED PAYMENTS ============
   console.log('💳 Seeding payments...');
@@ -304,7 +425,7 @@ async function seed() {
   console.log('Summary:');
   console.log(`  👤 Users: ${users.length}`);
   console.log(`  🚗 Drivers: ${drivers.length}`);
-  console.log(`  🏢 Fleets: ${fleets.length}`);
+  console.log(`  🏢 Fleet Owners: ${fleetOwners.length}`);
   console.log(`  🚚 Vehicles: ${vehicles.length}`);
   console.log(`  📦 Bookings: ${bookings.length}`);
   console.log(`  💳 Payments: ${payments.length}`);
