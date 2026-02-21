@@ -57,24 +57,6 @@ export class CreateBookingDto {
   @IsOptional()
   scheduledTime?: string;
 
-  @ApiProperty({
-    example: '1234567890',
-    description: 'Driver ID',
-    required: false,
-  })
-  @IsString()
-  @IsOptional()
-  driverId?: string;
-
-  @ApiProperty({
-    example: '1234567890',
-    description: 'Customer ID',
-    required: false,
-  })
-  @IsString()
-  @IsOptional()
-  customerId?: string;
-
   @ApiPropertyOptional({
     description: 'Cargo requirements for intelligent vehicle matching',
     type: CargoRequirementsDto,
