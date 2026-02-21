@@ -232,3 +232,55 @@ For issues with the deployment pipeline:
 3. Verify secrets are correctly set in GitHub
 4. Ensure Tailscale is properly configured
 5. Check server disk space and resources
+
+
+
+Take Outs 
+
+# Job 4: Notify on Discord (Optional)
+  notify:
+    name: Notify Team
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: always()
+
+    steps:
+      - name: Send Discord notification
+        if: ${{ secrets.DISCORD_WEBHOOK_URL != '' }}
+        run: |
+          STATUS="${{ needs.deploy.result }}"
+          COLOR=$([[ "$STATUS" == "success" ]] && echo "3066993" || echo "15158332")
+          EMOJI=$([[ "$STATUS" == "success" ]] && echo "✅" || echo "❌")
+          
+          curl -H "Content-Type: application/json" \
+               -d '{
+                 "embeds": [{
+                   "title": "'"$EMOJI"' Truckly Backend Deployment",
+                   "description": "Deployment completed with status: **'"$STATUS"'**",
+                   "color": '"$COLOR"',
+                   "fields": [
+                     {
+                       "name": "Branch",
+                       "value": "'"${{ github.ref_name }}"'",
+                       "inline": true
+                     },
+                     {
+                       "name": "Author",
+                       "value": "'"${{ github.actor }}"'",
+                       "inline": true
+                     },
+                     {
+                       "name": "Commit",
+                       "value": "'"${GITHUB_SHA:0:7}"'",
+                       "inline": true
+                     },
+                     {
+                       "name": "Repository",
+                       "value": "'"${{ github.repository }}"'",
+                       "inline": false
+                     }
+                   ],
+                   "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
+                 }]
+               }' \
+               ${{ secrets.DISCORD_WEBHOOK_URL }}
