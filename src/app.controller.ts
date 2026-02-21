@@ -2,10 +2,7 @@ import { Controller, Get, Post, Body } from '@nestjs/common';
 import { AppService } from './app.service';
 import { LocationGateway } from './websockets/location.gateway';
 import { FindDriversDto } from './drivers/dto/find-drivers.dto';
-import {
-  GatewayFactory,
-  ConnectedClient,
-} from './websockets/gateway.factory';
+import { GatewayFactory } from './websockets/gateway.factory';
 
 @Controller()
 export class AppController {
@@ -16,22 +13,20 @@ export class AppController {
   ) {}
 
   @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  getHello() {
+    return { message: this.appService.getHello() };
   }
 
   @Post('nearby-drivers')
-  findDriversNearBy(@Body() findDriversDto: FindDriversDto): unknown {
-    const results = this.locationGateway.findClosestDriver(
+  async findDriversNearBy(@Body() findDriversDto: FindDriversDto) {
+    return this.locationGateway.findClosestDriver(
       findDriversDto.lat,
       findDriversDto.lng,
     );
-    return results;
   }
 
   @Get('clients')
-  async getConnectedClients(): Promise<ConnectedClient[]> {
+  async getConnectedClients() {
     return this.gatewayFactory.getConnectedClients();
   }
 }
-
