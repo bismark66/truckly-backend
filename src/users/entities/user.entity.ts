@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 export enum UserRole {
   ADMIN = 'ADMIN',
@@ -51,6 +57,9 @@ export class User {
 
   @Column({ type: 'timestamp', nullable: true })
   resetPasswordExpires: Date;
+
+  @Column({ nullable: true })
+  fcmToken: string;
 
   @CreateDateColumn()
   createdAt: Date;
