@@ -196,10 +196,10 @@ jobs:
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
             # Run migrations
-            docker compose run --rm app-prod pnpm run migration:run || echo "⚠️ Migrations skipped"
+            docker compose run --rm app-prod npm run migration:run || echo "⚠️ Migrations skipped"
 
             # Seed database
-            docker compose run --rm app-prod pnpm run seed || echo "⚠️ Seeding skipped"
+            docker compose run --rm app-prod npm run seed || echo "⚠️ Seeding skipped"
 
             # Cleanup old images
             docker image prune -f
@@ -253,7 +253,7 @@ jobs:
 
     steps:
       - name: Send Discord notification
-        if: secrets.DISCORD_WEBHOOK_URL != ''
+        if: ${{ secrets.DISCORD_WEBHOOK_URL != '' }}
         run: |
           STATUS="${{ needs.deploy.result }}"
           COLOR=$([[ "$STATUS" == "success" ]] && echo "3066993" || echo "15158332")
