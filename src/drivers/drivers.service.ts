@@ -1,18 +1,27 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { Driver } from './entities/driver.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class DriversService {
   constructor(
     @InjectRepository(Driver)
     private driversRepository: Repository<Driver>,
+    private notificationsService: NotificationsService,
   ) {}
 
-  async create(userId: string, createDriverDto: CreateDriverDto): Promise<Driver> {
+  async create(
+    userId: string,
+    createDriverDto: CreateDriverDto,
+  ): Promise<Driver> {
     const existingDriver = await this.driversRepository.findOneBy({ userId });
     if (existingDriver) {
       throw new BadRequestException('Driver profile already exists');
@@ -30,11 +39,17 @@ export class DriversService {
   }
 
   findOne(id: string) {
-    return this.driversRepository.findOne({ where: { id }, relations: ['user'] });
+    return this.driversRepository.findOne({
+      where: { id },
+      relations: ['user'],
+    });
   }
 
   findOneByUserId(userId: string) {
-    return this.driversRepository.findOne({ where: { userId }, relations: ['user'] });
+    return this.driversRepository.findOne({
+      where: { userId },
+      relations: ['user'],
+    });
   }
 
   update(id: number, updateDriverDto: UpdateDriverDto) {
@@ -66,5 +81,17 @@ export class DriversService {
       lastSeenAt: new Date(),
     });
   }
-}
 
+  /**
+   * Register FCM token for push notifications
+   */
+  async registerFcmToken(userId: string, fcmToken: string) {
+    const driver = await this.findOneByUserId(userId);
+    if (!driver) {
+      throw new NotFoundException('Driver profile not found');
+    }
+
+    await this.notificationsService.registerDriverToken(driver.id, fcmToken);
+    return { fcmToken };
+  }
+}

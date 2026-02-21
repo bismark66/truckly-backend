@@ -6,9 +6,16 @@ import { Driver, VehicleType } from '../../drivers/entities/driver.entity';
 import { DriverStatus } from '../../drivers/driver-status.service';
 import { FleetOwner } from '../../fleet-owners/entities/fleet-owner.entity';
 import { Vehicle, VehicleStatus } from '../../vehicles/entities/vehicle.entity';
-import { Booking, BookingStatus, BookingType } from '../../bookings/entities/booking.entity';
+import {
+  Booking,
+  BookingStatus,
+  BookingType,
+} from '../../bookings/entities/booking.entity';
 import { Payment, PaymentStatus } from '../../payments/entities/payment.entity';
-import { Document, DocumentType } from '../../documents/entities/document.entity';
+import {
+  Document,
+  DocumentType,
+} from '../../documents/entities/document.entity';
 import { CargoType } from '../../transport/factory';
 import * as dotenv from 'dotenv';
 import Redis from 'ioredis';
@@ -22,18 +29,42 @@ const GHANA_COORDS = {
 };
 
 // Ghanaian cities for addresses
-const GHANA_CITIES = ['Accra', 'Kumasi', 'Tema', 'Takoradi', 'Tamale', 'Cape Coast'];
+const GHANA_CITIES = [
+  'Accra',
+  'Kumasi',
+  'Tema',
+  'Takoradi',
+  'Tamale',
+  'Cape Coast',
+];
 
 function getGhanaLocation() {
   return {
-    lat: faker.number.float({ min: GHANA_COORDS.lat.min, max: GHANA_COORDS.lat.max, fractionDigits: 6 }),
-    lng: faker.number.float({ min: GHANA_COORDS.lng.min, max: GHANA_COORDS.lng.max, fractionDigits: 6 }),
+    lat: faker.number.float({
+      min: GHANA_COORDS.lat.min,
+      max: GHANA_COORDS.lat.max,
+      fractionDigits: 6,
+    }),
+    lng: faker.number.float({
+      min: GHANA_COORDS.lng.min,
+      max: GHANA_COORDS.lng.max,
+      fractionDigits: 6,
+    }),
     address: `${faker.location.streetAddress()}, ${faker.helpers.arrayElement(GHANA_CITIES)}, Ghana`,
   };
 }
 
 function generateLicensePlate(): string {
-  const region = faker.helpers.arrayElement(['GR', 'GT', 'GW', 'GN', 'GE', 'GC', 'AS', 'BA']);
+  const region = faker.helpers.arrayElement([
+    'GR',
+    'GT',
+    'GW',
+    'GN',
+    'GE',
+    'GC',
+    'AS',
+    'BA',
+  ]);
   const number = faker.number.int({ min: 1000, max: 9999 });
   const suffix = faker.number.int({ min: 10, max: 99 });
   return `${region}-${number}-${suffix}`;
@@ -55,7 +86,10 @@ function generateCargoRequirements(vehicleType?: VehicleType) {
         return {
           weight: faker.number.int({ min: 3000, max: 15000 }),
           volume: faker.number.float({ min: 10, max: 30, fractionDigits: 2 }),
-          cargoType: faker.helpers.arrayElement([CargoType.BULK, CargoType.MINING]),
+          cargoType: faker.helpers.arrayElement([
+            CargoType.BULK,
+            CargoType.MINING,
+          ]),
           requiresDump: true,
           specialRequirements: faker.helpers.arrayElement([
             'Sand delivery for construction',
@@ -82,7 +116,10 @@ function generateCargoRequirements(vehicleType?: VehicleType) {
         return {
           weight: faker.number.int({ min: 5000, max: 25000 }),
           volume: faker.number.float({ min: 20, max: 60, fractionDigits: 2 }),
-          cargoType: faker.helpers.arrayElement([CargoType.PACKAGED, CargoType.GENERAL]),
+          cargoType: faker.helpers.arrayElement([
+            CargoType.PACKAGED,
+            CargoType.GENERAL,
+          ]),
           specialRequirements: faker.helpers.arrayElement([
             'Electronics shipment',
             'Furniture delivery',
@@ -145,6 +182,75 @@ function generateCargoRequirements(vehicleType?: VehicleType) {
   }
 
   return baseRequirement;
+}
+
+/**
+ * Get vehicle capacity specifications based on vehicle type
+ */
+function getVehicleCapacityByType(vehicleType: VehicleType) {
+  switch (vehicleType) {
+    case VehicleType.TRAILER:
+      return {
+        vehicleCapacity: faker.number.int({ min: 18000, max: 22000 }), // 18-22 tons
+        vehicleVolume: faker.number.float({
+          min: 35,
+          max: 45,
+          fractionDigits: 2,
+        }), // 35-45 m³
+        hasFlatbed: faker.datatype.boolean({ probability: 0.3 }), // 30% have flatbed
+        hasDumpCapability: false,
+        passengerSeats: undefined,
+      };
+    case VehicleType.TIPPER_TRUCK:
+      return {
+        vehicleCapacity: faker.number.int({ min: 13000, max: 17000 }), // 13-17 tons
+        vehicleVolume: faker.number.float({
+          min: 8,
+          max: 12,
+          fractionDigits: 2,
+        }), // 8-12 m³
+        hasFlatbed: false,
+        hasDumpCapability: true,
+        passengerSeats: undefined,
+      };
+    case VehicleType.BUS:
+      return {
+        vehicleCapacity: faker.number.int({ min: 1500, max: 2500 }), // 1.5-2.5 tons (passenger weight)
+        vehicleVolume: faker.number.float({
+          min: 4,
+          max: 6,
+          fractionDigits: 2,
+        }), // 4-6 m³
+        hasFlatbed: false,
+        hasDumpCapability: false,
+        passengerSeats: faker.number.int({ min: 30, max: 60 }), // 30-60 seats
+      };
+    case VehicleType.MINING_TRANSPORT:
+      return {
+        vehicleCapacity: faker.number.int({ min: 22000, max: 28000 }), // 22-28 tons
+        vehicleVolume: faker.number.float({
+          min: 12,
+          max: 18,
+          fractionDigits: 2,
+        }), // 12-18 m³
+        hasFlatbed: faker.datatype.boolean({ probability: 0.4 }), // 40% have flatbed
+        hasDumpCapability: true,
+        passengerSeats: undefined,
+      };
+    case VehicleType.OTHER:
+    default:
+      return {
+        vehicleCapacity: faker.number.int({ min: 4000, max: 6000 }), // 4-6 tons
+        vehicleVolume: faker.number.float({
+          min: 6,
+          max: 10,
+          fractionDigits: 2,
+        }), // 6-10 m³
+        hasFlatbed: faker.datatype.boolean({ probability: 0.2 }), // 20% have flatbed
+        hasDumpCapability: false,
+        passengerSeats: undefined,
+      };
+  }
 }
 
 async function seed() {
@@ -264,10 +370,14 @@ async function seed() {
 
   for (const driverUser of driverUsers) {
     const location = getGhanaLocation();
+    const vehicleType = faker.helpers.arrayElement(Object.values(VehicleType));
+    const vehicleCapacitySpecs = getVehicleCapacityByType(vehicleType);
+
     const driver = driverRepo.create({
       userId: driverUser.id,
       licenseNumber: `GHA-${faker.string.alphanumeric(8).toUpperCase()}`,
-      vehicleType: faker.helpers.arrayElement(Object.values(VehicleType)),
+      vehicleType,
+      ...vehicleCapacitySpecs, // Spread vehicle capacity specs
       currentLatitude: location.lat,
       currentLongitude: location.lng,
       lastSeenAt: new Date(),
@@ -277,11 +387,24 @@ async function seed() {
     drivers.push(savedDriver);
 
     // Add driver location to Redis for geospatial queries
-    await redis.call('GEOADD', 'driver-locations', location.lng, location.lat, savedDriver.id);
+    await redis.call(
+      'GEOADD',
+      'driver-locations',
+      location.lng,
+      location.lat,
+      savedDriver.id,
+    );
 
     // Set initial status in Redis (randomize ONLINE/OFFLINE)
-    const status = faker.helpers.arrayElement([DriverStatus.ONLINE, DriverStatus.OFFLINE]);
+    const status = faker.helpers.arrayElement([
+      DriverStatus.ONLINE,
+      DriverStatus.OFFLINE,
+    ]);
     await redis.hset('driver-status', savedDriver.id, status);
+
+    console.log(
+      `  ✓ Driver ${savedDriver.id}: ${vehicleType} (${vehicleCapacitySpecs.vehicleCapacity}kg, ${vehicleCapacitySpecs.vehicleVolume}m³)`,
+    );
   }
 
   console.log(`✅ Created ${drivers.length} drivers (also added to Redis)\n`);
@@ -349,25 +472,33 @@ async function seed() {
       status,
       type: faker.helpers.arrayElement(Object.values(BookingType)),
       price: parseFloat(faker.commerce.price({ min: 100, max: 5000, dec: 2 })),
-      scheduledTime: status === BookingStatus.PENDING ? faker.date.future() : undefined,
+      scheduledTime:
+        status === BookingStatus.PENDING ? faker.date.future() : undefined,
       cargoRequirements, // Add cargo requirements
     });
     bookings.push(await bookingRepo.save(booking));
   }
 
-  console.log(`✅ Created ${bookings.length} bookings (with cargo requirements)\n`);
+  console.log(
+    `✅ Created ${bookings.length} bookings (with cargo requirements)\n`,
+  );
 
   // ============ SEED PAYMENTS ============
   console.log('💳 Seeding payments...');
   const payments: Payment[] = [];
 
-  const completedBookings = bookings.filter((b) => b.status === BookingStatus.COMPLETED);
+  const completedBookings = bookings.filter(
+    (b) => b.status === BookingStatus.COMPLETED,
+  );
 
   for (const booking of completedBookings) {
     const payment = paymentRepo.create({
       bookingId: booking.id,
       amount: booking.price,
-      status: faker.helpers.arrayElement([PaymentStatus.SUCCESS, PaymentStatus.PENDING]),
+      status: faker.helpers.arrayElement([
+        PaymentStatus.SUCCESS,
+        PaymentStatus.PENDING,
+      ]),
       reference: `PAY-${faker.string.alphanumeric(10).toUpperCase()}`,
       provider: 'PAYSTACK',
     });
@@ -375,7 +506,9 @@ async function seed() {
   }
 
   // Add some pending payments for other bookings
-  const inProgressBookings = bookings.filter((b) => b.status === BookingStatus.IN_PROGRESS);
+  const inProgressBookings = bookings.filter(
+    (b) => b.status === BookingStatus.IN_PROGRESS,
+  );
   for (const booking of inProgressBookings.slice(0, 3)) {
     const payment = paymentRepo.create({
       bookingId: booking.id,

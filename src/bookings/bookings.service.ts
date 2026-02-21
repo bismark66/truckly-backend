@@ -2,6 +2,9 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -13,26 +16,88 @@ import { LogisticsService, VehicleMatch } from '../transport/logistics.service';
 import { VehiclesService } from '../vehicles/vehicles.service';
 import { VehicleStatus } from '../vehicles/entities/vehicle.entity';
 import { CargoRequirements } from '../transport/factory';
+import { BookingAllocationService } from './booking-allocation.service';
 
 @Injectable()
 export class BookingsService {
+  private readonly logger = new Logger(BookingsService.name);
+
   constructor(
     @InjectRepository(Booking)
     private bookingsRepository: Repository<Booking>,
     private chatService: ChatService,
     private logisticsService: LogisticsService,
     private vehiclesService: VehiclesService,
+    @Inject(forwardRef(() => BookingAllocationService))
+    private bookingAllocationService: BookingAllocationService,
   ) {}
 
   async create(
     customerId: string,
     createBookingDto: CreateBookingDto,
-  ): Promise<Booking> {
+  ): Promise<{
+    booking: Booking;
+    driversNotified: number;
+    message: string;
+  }> {
+    // Step 1: Create and save the booking
     const booking = this.bookingsRepository.create({
       ...createBookingDto,
       customerId,
+      status: BookingStatus.PENDING,
     });
-    return this.bookingsRepository.save(booking);
+    console.log('booking', booking);
+    const savedBooking = await this.bookingsRepository.save(booking);
+    this.logger.log(
+      `Booking ${savedBooking.id} created for customer ${customerId}`,
+    );
+
+    // Step 2: Find matching drivers (top 3)
+    try {
+      const matchingDrivers =
+        await this.bookingAllocationService.findMatchingDrivers(
+          savedBooking,
+          5,
+        );
+      console.log('drivers', matchingDrivers);
+
+      if (matchingDrivers.length === 0) {
+        this.logger.warn(`No drivers available for booking ${savedBooking.id}`);
+        return {
+          booking: savedBooking,
+          driversNotified: 0,
+          message:
+            'Booking created but no drivers available at the moment. Please try again later.',
+        };
+      }
+
+      // Step 3: Send batch request to drivers (WebSocket + FCM + timeout job)
+      await this.bookingAllocationService.sendBatchRequest(
+        savedBooking,
+        matchingDrivers,
+      );
+
+      this.logger.log(
+        `Booking ${savedBooking.id} sent to ${matchingDrivers.length} drivers`,
+      );
+
+      return {
+        booking: savedBooking,
+        driversNotified: matchingDrivers.length,
+        message: `Booking request sent to ${matchingDrivers.length} available drivers`,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to allocate drivers for booking ${savedBooking.id}: ${error.message}`,
+      );
+      // Booking is still created, but driver allocation failed
+      return {
+        booking: savedBooking,
+        driversNotified: 0,
+        message:
+          'Booking created but failed to notify drivers. Please contact support.',
+      };
+    }
   }
 
   findAll() {
@@ -78,7 +143,7 @@ export class BookingsService {
         const validation =
           await this.logisticsService.validateDriverVehicleForBooking(
             driverId,
-            booking.cargoRequirements as CargoRequirements,
+            booking.cargoRequirements,
           );
 
         if (!validation.result.canHandle) {
@@ -145,7 +210,7 @@ export class BookingsService {
     // Get suggestions from all available vehicles (not limited to a specific fleet)
     return this.logisticsService.suggestVehicles(
       null,
-      booking.cargoRequirements as CargoRequirements,
+      booking.cargoRequirements,
       limit,
     );
   }

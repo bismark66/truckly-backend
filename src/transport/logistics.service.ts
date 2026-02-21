@@ -6,8 +6,13 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Vehicle, VehicleStatus } from '../vehicles/entities/vehicle.entity';
+import { Driver } from '../drivers/entities/driver.entity';
 import { RoadLogistics } from './logistics/roadLogistics';
 import { CargoRequirements, MatchResult } from './factory';
+import {
+  canVehicleHandleCargoType,
+  getCompatibleVehicleTypes,
+} from './vehicle-cargo-compatibility';
 
 /**
  * Match result with vehicle details
@@ -216,5 +221,100 @@ export class LogisticsService {
     }
 
     return bestMatch;
+  }
+
+  /**
+   * Validate if a driver's vehicle can handle cargo requirements
+   * Uses driver entity directly (not separate vehicle table)
+   * @param driver - Driver entity with vehicle information
+   * @param cargoRequirements - Cargo specifications
+   * @returns Match result with validation details
+   */
+  validateDriverVehicle(
+    driver: Driver,
+    cargoRequirements: CargoRequirements,
+  ): MatchResult {
+    // Check if vehicle type can handle cargo type
+    if (
+      !canVehicleHandleCargoType(
+        driver.vehicleType,
+        cargoRequirements.cargoType,
+      )
+    ) {
+      return {
+        canHandle: false,
+        matchScore: 0,
+        reason: `${driver.vehicleType} cannot handle ${cargoRequirements.cargoType} cargo`,
+      };
+    }
+
+    // Check capacity
+    if (
+      driver.vehicleCapacity &&
+      cargoRequirements.weight > driver.vehicleCapacity
+    ) {
+      return {
+        canHandle: false,
+        matchScore: 0,
+        reason: `Vehicle capacity (${driver.vehicleCapacity}kg) insufficient for cargo weight (${cargoRequirements.weight}kg)`,
+      };
+    }
+
+    // Check volume
+    if (
+      cargoRequirements.volume &&
+      driver.vehicleVolume &&
+      cargoRequirements.volume > driver.vehicleVolume
+    ) {
+      return {
+        canHandle: false,
+        matchScore: 0,
+        reason: `Vehicle volume (${driver.vehicleVolume}m³) insufficient for cargo volume (${cargoRequirements.volume}m³)`,
+      };
+    }
+
+    // Check special requirements
+    if (cargoRequirements.requiresFlatbed && !driver.hasFlatbed) {
+      return {
+        canHandle: false,
+        matchScore: 0,
+        reason: 'Flatbed required but vehicle does not have flatbed',
+      };
+    }
+
+    if (cargoRequirements.requiresDump && !driver.hasDumpCapability) {
+      return {
+        canHandle: false,
+        matchScore: 0,
+        reason: 'Dump capability required but vehicle cannot dump',
+      };
+    }
+
+    if (
+      cargoRequirements.requiresPassengerSeats &&
+      (!driver.passengerSeats || driver.passengerSeats < 1)
+    ) {
+      return {
+        canHandle: false,
+        matchScore: 0,
+        reason: 'Passenger seats required but vehicle has none',
+      };
+    }
+
+    // Calculate match score using transport strategy
+    const strategy = this.roadLogistics.createTransport(driver.vehicleType);
+    return strategy.matchScore(
+      cargoRequirements,
+      driver.vehicleCapacity || 5000,
+    );
+  }
+
+  /**
+   * Get compatible vehicle types for cargo requirements
+   * @param cargoRequirements - Cargo specifications
+   * @returns Array of compatible vehicle types
+   */
+  getCompatibleVehicleTypesForCargo(cargoRequirements: CargoRequirements) {
+    return getCompatibleVehicleTypes(cargoRequirements.cargoType);
   }
 }

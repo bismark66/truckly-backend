@@ -13,12 +13,12 @@ import Redis from 'ioredis';
           host: configService.get<string>('REDIS_HOST'),
           port: configService.get<number>('REDIS_PORT'),
         };
-        
+
         const redisPassword = configService.get<string>('REDIS_PASSWORD');
         if (redisPassword) {
           redisConfig.password = redisPassword;
         }
-        
+
         return new Redis(redisConfig);
       },
       inject: [ConfigService],
@@ -30,12 +30,12 @@ import Redis from 'ioredis';
           host: configService.get<string>('REDIS_HOST'),
           port: configService.get<number>('REDIS_PORT'),
         };
-        
+
         const redisPassword = configService.get<string>('REDIS_PASSWORD');
         if (redisPassword) {
           redisConfig.password = redisPassword;
         }
-        
+
         return new Redis(redisConfig);
       },
       inject: [ConfigService],

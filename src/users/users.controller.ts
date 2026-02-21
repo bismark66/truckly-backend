@@ -6,9 +6,8 @@ import {
   Patch,
   Param,
   Delete,
-  BadRequestException,
 } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiTags, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { ParseFloatPipe } from '../common/pipes/parse-float.pipe';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -22,7 +21,6 @@ export class UsersController {
   ) {}
 
   @Get('drivers-near-me/:lat/:lng')
-  // @ApiTags('users')
   @ApiOperation({ summary: 'Find drivers near a given latitude and longitude' })
   @ApiParam({ name: 'lat', description: 'Latitude (float)', required: true })
   @ApiParam({ name: 'lng', description: 'Longitude (float)', required: true })
@@ -31,8 +29,7 @@ export class UsersController {
     @Param('lat', ParseFloatPipe) lat: number,
     @Param('lng', ParseFloatPipe) lng: number,
   ) {
-    const result = await this.locationGateway.findClosestDriver(lat, lng);
-    return result;
+    return this.locationGateway.findClosestDriver(lat, lng);
   }
 
   @Post()

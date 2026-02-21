@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CacheModule } from '@nestjs/cache-manager';
+import { BullModule } from '@nestjs/bull';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
@@ -15,6 +16,8 @@ import { RedisModule } from './redis/redis.module';
 import { WebSocketsModule } from './websockets/websockets.module';
 import { VehiclesModule } from './vehicles/vehicles.module';
 import { ChatModule } from './chat/chat.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { QueuesModule } from './queues/queues.module';
 import * as redisStore from 'cache-manager-redis-store';
 
 @Module({
@@ -60,6 +63,17 @@ import * as redisStore from 'cache-manager-redis-store';
       }),
       inject: [ConfigService],
     }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        redis: {
+          host: configService.get<string>('REDIS_HOST'),
+          port: configService.get<number>('REDIS_PORT'),
+          password: configService.get<string>('REDIS_PASSWORD'),
+        },
+      }),
+      inject: [ConfigService],
+    }),
     UsersModule,
     AuthModule,
     DriversModule,
@@ -71,6 +85,8 @@ import * as redisStore from 'cache-manager-redis-store';
     RedisModule,
     WebSocketsModule,
     ChatModule,
+    NotificationsModule,
+    QueuesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

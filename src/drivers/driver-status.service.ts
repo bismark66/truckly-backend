@@ -15,9 +15,7 @@ const DRIVER_STATUS_KEY = 'driver-status';
  */
 @Injectable()
 export class DriverStatusService {
-  constructor(
-    @Inject('REDIS_CLIENT') private readonly redisClient: Redis,
-  ) {}
+  constructor(@Inject('REDIS_CLIENT') private readonly redisClient: Redis) {}
 
   /**
    * Set driver status

@@ -21,7 +21,6 @@ export class ChatService {
     customerId: string,
     driverId: string,
   ): Promise<Conversation> {
-
     const isExisting = await this.conversationRepo.findOne({
       where: { bookingId },
     });
@@ -39,7 +38,9 @@ export class ChatService {
   /**
    * Get conversation by booking ID
    */
-  async getConversationByBookingId(bookingId: string): Promise<Conversation | null> {
+  async getConversationByBookingId(
+    bookingId: string,
+  ): Promise<Conversation | null> {
     return this.conversationRepo.findOne({ where: { bookingId } });
   }
 
@@ -126,7 +127,10 @@ export class ChatService {
   /**
    * Get unread message count for a user in a conversation
    */
-  async getUnreadCount(conversationId: string, userId: string): Promise<number> {
+  async getUnreadCount(
+    conversationId: string,
+    userId: string,
+  ): Promise<number> {
     return this.messageRepo.count({
       where: {
         conversationId,

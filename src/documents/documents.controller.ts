@@ -1,6 +1,26 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, UseInterceptors, UploadedFile } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Request,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
+  ApiParam,
+} from '@nestjs/swagger';
 import { DocumentsService } from './documents.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
@@ -37,8 +57,16 @@ export class DocumentsController {
   })
   @ApiResponse({ status: 201, description: 'Document uploaded successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
-  uploadFile(@Request() req, @UploadedFile() file: Express.Multer.File, @Body() createDocumentDto: CreateDocumentDto) {
-    return this.documentsService.create(req.user.userId, file, createDocumentDto);
+  uploadFile(
+    @Request() req,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() createDocumentDto: CreateDocumentDto,
+  ) {
+    return this.documentsService.create(
+      req.user.userId,
+      file,
+      createDocumentDto,
+    );
   }
 
   @Get()
@@ -57,7 +85,10 @@ export class DocumentsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateDocumentDto: UpdateDocumentDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateDocumentDto: UpdateDocumentDto,
+  ) {
     return this.documentsService.update(+id, updateDocumentDto);
   }
 

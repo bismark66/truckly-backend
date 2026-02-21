@@ -1,5 +1,23 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, UseInterceptors } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Request,
+  UseInterceptors,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiBody,
+} from '@nestjs/swagger';
 import { CacheInterceptor } from '@nestjs/cache-manager';
 import { DriversService } from './drivers.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
@@ -8,24 +26,27 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
-import { LocationGateway } from '../websockets/location.gateway';
-import { FindDriversDto } from './dto/find-drivers.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @ApiTags('Drivers')
 @ApiBearerAuth()
 @Controller('drivers')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class DriversController {
-  constructor(private readonly driversService: DriversService, 
+  constructor(
+    private readonly driversService: DriversService,
+    private readonly notificationsService: NotificationsService,
   ) {}
-
 
   @Post()
   @Roles(UserRole.DRIVER)
   @ApiOperation({ summary: 'Create driver profile' })
-  @ApiResponse({ status: 201, description: 'Driver profile created successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Driver profile created successfully',
+  })
   @ApiResponse({ status: 400, description: 'Driver profile already exists' })
-  create(@Request() req, @Body() createDriverDto: CreateDriverDto) {
+  async create(@Request() req, @Body() createDriverDto: CreateDriverDto) {
     return this.driversService.create(req.user.userId, createDriverDto);
   }
 
@@ -33,8 +54,33 @@ export class DriversController {
   @Roles(UserRole.DRIVER)
   @ApiOperation({ summary: 'Get current driver profile' })
   @ApiResponse({ status: 200, description: 'Driver profile retrieved' })
-  getProfile(@Request() req) {
+  async getProfile(@Request() req) {
     return this.driversService.findOneByUserId(req.user.userId);
+  }
+
+  @Patch('me/fcm-token')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({
+    summary: 'Register or update FCM token for push notifications',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'FCM token registered successfully',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        fcmToken: {
+          type: 'string',
+          example: 'fcm_token_example_1234567890abcdefg',
+        },
+      },
+      required: ['fcmToken'],
+    },
+  })
+  async registerFcmToken(@Request() req, @Body('fcmToken') fcmToken: string) {
+    return this.driversService.registerFcmToken(req.user.userId, fcmToken);
   }
 
   @Get()

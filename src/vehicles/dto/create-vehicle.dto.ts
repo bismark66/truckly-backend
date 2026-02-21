@@ -1,17 +1,26 @@
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { VehicleType, VehicleStatus } from '../entities/vehicle.entity';
 
 export class CreateVehicleDto {
-  @ApiProperty({ example: 'GR-1234-20', description: 'Vehicle license plate number' })
+  @ApiProperty({
+    example: 'GR-1234-20',
+    description: 'Vehicle license plate number',
+  })
   @IsString()
   @IsNotEmpty()
   licensePlate: string;
 
-  @ApiProperty({ 
-    example: 'TRAILER', 
+  @ApiProperty({
+    example: 'TRAILER',
     enum: VehicleType,
-    description: 'Type of vehicle'
+    description: 'Type of vehicle',
   })
   @IsEnum(VehicleType)
   @IsNotEmpty()
@@ -22,11 +31,11 @@ export class CreateVehicleDto {
   @IsNotEmpty()
   capacity: number;
 
-  @ApiProperty({ 
-    example: 'AVAILABLE', 
+  @ApiProperty({
+    example: 'AVAILABLE',
     enum: VehicleStatus,
     description: 'Current vehicle status',
-    required: false
+    required: false,
   })
   @IsEnum(VehicleStatus)
   @IsOptional()

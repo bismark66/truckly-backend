@@ -12,7 +12,11 @@ export class DocumentsService {
     private documentsRepository: Repository<Document>,
   ) {}
 
-  async create(userId: string, file: Express.Multer.File, createDocumentDto: CreateDocumentDto): Promise<Document> {
+  async create(
+    userId: string,
+    file: Express.Multer.File,
+    createDocumentDto: CreateDocumentDto,
+  ): Promise<Document> {
     const document = this.documentsRepository.create({
       ...createDocumentDto,
       userId,
