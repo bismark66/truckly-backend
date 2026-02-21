@@ -26,10 +26,10 @@ Add these secrets to your GitHub repository: **Settings → Secrets and variable
 
 ### Optional Secrets
 
-5. **SLACK_WEBHOOK_URL** (Optional)
-   - Slack webhook URL for deployment notifications
-   - Create at: https://api.slack.com/messaging/webhooks
-   - Example: `https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX`
+5. **DISCORD_WEBHOOK_URL** (Optional)
+   - Discord webhook URL for deployment notifications
+   - Create in Discord: Server Settings → Integrations → Webhooks → New Webhook
+   - Example: `https://discord.com/api/webhooks/1234567890/abcdefghijklmnopqrstuvwxyz`
 
 ## Workflow Overview
 
@@ -41,7 +41,7 @@ Add these secrets to your GitHub repository: **Settings → Secrets and variable
 4. 💾 **Automatic Backup** - Creates database backup before deployment
 5. ❤️ **Health Check** - Verifies deployment success
 6. 🔄 **Auto Rollback** - Reverts changes if deployment fails
-7. 📢 **Notify Team** - Sends Slack notification (if configured)
+7. 📢 **Notify Team** - Sends Discord notification (if configured)
 
 ### On Pull Request:
 
