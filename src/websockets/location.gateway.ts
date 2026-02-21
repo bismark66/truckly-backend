@@ -10,7 +10,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
 import { BaseGateway, RedisChannelHandler } from './base.gateway';
 import { ConfigService } from '@nestjs/config';
-import { DriverStatusService, DriverStatus } from '../drivers/driver-status.service';
+import {
+  DriverStatusService,
+  DriverStatus,
+} from '../drivers/driver-status.service';
 import { DriversService } from '../drivers/drivers.service';
 
 @WebSocketGateway({
@@ -22,7 +25,7 @@ import { DriversService } from '../drivers/drivers.service';
 @Injectable()
 export class LocationGateway extends BaseGateway {
   @WebSocketServer()
-  declare protected server: Server;
+  declare public server: Server;
 
   constructor(
     @Inject('REDIS_CLIENT') redisPublisher: Redis,
@@ -51,9 +54,16 @@ export class LocationGateway extends BaseGateway {
     lng: number,
     radiusKm: number = this.configService.get('DRIVER_SEARCH_RADIUS') || 10,
   ) {
-    const driversNearMe: { driverId: string; distance: number; status: DriverStatus | null }[] = [];
+    console.log(
+      `[LocationGateway] Searching for drivers: lat=${lat}, lng=${lng}, radius=${radiusKm}km`,
+    );
+    const driversNearMe: {
+      driverId: string;
+      distance: number;
+      status: DriverStatus | null;
+    }[] = [];
 
-    const nearbyDrivers = (await this.redisPublisher.call(
+    const result = (await this.redisPublisher.call(
       'GEOSEARCH',
       'driver-locations',
       'FROMLONLAT',
@@ -66,23 +76,41 @@ export class LocationGateway extends BaseGateway {
       'ASC',
       'COUNT',
       10,
-    )) as [string, string][] | null;
+    )) as any;
+
+    console.log(`[LocationGateway] GEOSEARCH returned:`, result);
+
+    // GEOSEARCH returns array of tuples: [[driverId, distance], [driverId, distance], ...]
+    const nearbyDrivers = Array.isArray(result) ? result : [];
 
     if (nearbyDrivers && nearbyDrivers.length > 0) {
+      console.log(
+        `[LocationGateway] Found ${nearbyDrivers.length} drivers in radius`,
+      );
       for (const driver of nearbyDrivers) {
         const driverId = driver[0];
+        const distance = driver[1];
         const status = await this.driverStatusService.getStatus(driverId);
+        console.log(
+          `[LocationGateway] Driver ${driverId} status: ${status}, distance: ${distance}km`,
+        );
         // Only include online drivers
         if (status === DriverStatus.ONLINE) {
           driversNearMe.push({
             driverId,
-            distance: parseFloat(driver[1]),
+            distance: parseFloat(distance),
             status,
           });
         }
       }
+    } else {
+      console.log(`[LocationGateway] No drivers found in GEOSEARCH`);
     }
 
+    console.log(
+      `[LocationGateway] Returning ${driversNearMe.length} online drivers:`,
+      driversNearMe,
+    );
     return driversNearMe.length > 0 ? driversNearMe.slice(0, 3) : null;
   }
 
@@ -94,9 +122,37 @@ export class LocationGateway extends BaseGateway {
     @MessageBody() data: { driverId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    await this.driverStatusService.setStatus(data.driverId, DriverStatus.ONLINE);
-    console.log(`[Status] Driver ${data.driverId} is now ONLINE`);
+    await this.driverStatusService.setStatus(
+      data.driverId,
+      DriverStatus.ONLINE,
+    );
+
+    // Automatically join the driver's personal room for booking notifications
+    client.join(`driver_${data.driverId}`);
+    console.log(
+      `[Status] Driver ${data.driverId} is now ONLINE and joined room driver_${data.driverId}`,
+    );
+
     return { event: 'statusChanged', data: { status: DriverStatus.ONLINE } };
+  }
+
+  /**
+   * Join driver's personal room to receive booking notifications
+   * This should be called immediately after connection/authentication
+   */
+  @SubscribeMessage('joinDriverRoom')
+  async handleJoinDriverRoom(
+    @MessageBody() data: { driverId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    client.join(`driver_${data.driverId}`);
+    console.log(
+      `[Room] Driver ${data.driverId} joined room driver_${data.driverId}`,
+    );
+    return {
+      event: 'roomJoined',
+      data: { room: `driver_${data.driverId}`, success: true },
+    };
   }
 
   /**
@@ -108,7 +164,13 @@ export class LocationGateway extends BaseGateway {
     @ConnectedSocket() client: Socket,
   ) {
     await this.driverStatusService.removeStatus(data.driverId);
-    console.log(`[Status] Driver ${data.driverId} is now OFFLINE`);
+
+    // Leave the driver's personal room when going offline
+    client.leave(`driver_${data.driverId}`);
+    console.log(
+      `[Status] Driver ${data.driverId} is now OFFLINE and left room driver_${data.driverId}`,
+    );
+
     return { event: 'statusChanged', data: { status: DriverStatus.OFFLINE } };
   }
 
@@ -125,7 +187,9 @@ export class LocationGateway extends BaseGateway {
     } else {
       await this.driverStatusService.setStatus(data.driverId, data.status);
     }
-    console.log(`[Status] Driver ${data.driverId} status set to ${data.status}`);
+    console.log(
+      `[Status] Driver ${data.driverId} status set to ${data.status}`,
+    );
     return { event: 'statusChanged', data: { status: data.status } };
   }
 
@@ -186,7 +250,9 @@ export class LocationGateway extends BaseGateway {
     @ConnectedSocket() client: Socket,
   ) {
     const status = await this.driverStatusService.getStatus(data.driverId);
-    return { event: 'driverStatus', data: { driverId: data.driverId, status: status || DriverStatus.OFFLINE } };
+    return {
+      event: 'driverStatus',
+      data: { driverId: data.driverId, status: status || DriverStatus.OFFLINE },
+    };
   }
 }
-
