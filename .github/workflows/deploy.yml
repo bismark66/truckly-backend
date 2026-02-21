@@ -198,6 +198,9 @@ jobs:
             # Run migrations
             docker compose run --rm app-prod pnpm run migration:run || echo "⚠️ Migrations skipped"
 
+            # Seed database
+            docker compose run --rm app-prod pnpm run seed || echo "⚠️ Seeding skipped"
+
             # Cleanup old images
             docker image prune -f
 
@@ -208,6 +211,8 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            cd ~/projects/truckly-backend
+            
             # Wait for application to start
             sleep 15
 
@@ -225,7 +230,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd ~/truckly-backend
+            cd ~/projects/truckly-backend
 
             echo "⚠️ Deployment failed, attempting rollback..."
 
@@ -239,7 +244,7 @@ jobs:
         if: success()
         run: echo "✅ Backend deployment successful!"
 
-  # Job 4: Notify on Slack (Optional)
+  # Job 4: Notify on Discord (Optional)
   notify:
     name: Notify Team
     runs-on: ubuntu-latest
@@ -247,22 +252,42 @@ jobs:
     if: always()
 
     steps:
-      - name: Send notification
-        if: secrets.SLACK_WEBHOOK_URL != ''
-        uses: slackapi/slack-github-action@v1.25.0
-        with:
-          payload: |
-            {
-              "text": "Deployment Status: ${{ needs.deploy.result }}",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Truckly Backend Deployment*\n*Status:* ${{ needs.deploy.result }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      - name: Send Discord notification
+        if: secrets.DISCORD_WEBHOOK_URL != ''
+        run: |
+          STATUS="${{ needs.deploy.result }}"
+          COLOR=$([[ "$STATUS" == "success" ]] && echo "3066993" || echo "15158332")
+          EMOJI=$([[ "$STATUS" == "success" ]] && echo "✅" || echo "❌")
+          
+          curl -H "Content-Type: application/json" \
+               -d '{
+                 "embeds": [{
+                   "title": "'"$EMOJI"' Truckly Backend Deployment",
+                   "description": "Deployment completed with status: **'"$STATUS"'**",
+                   "color": '"$COLOR"',
+                   "fields": [
+                     {
+                       "name": "Branch",
+                       "value": "'"${{ github.ref_name }}"'",
+                       "inline": true
+                     },
+                     {
+                       "name": "Author",
+                       "value": "'"${{ github.actor }}"'",
+                       "inline": true
+                     },
+                     {
+                       "name": "Commit",
+                       "value": "'"${GITHUB_SHA:0:7}"'",
+                       "inline": true
+                     },
+                     {
+                       "name": "Repository",
+                       "value": "'"${{ github.repository }}"'",
+                       "inline": false
+                     }
+                   ],
+                   "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
+                 }]
+               }' \
+               ${{ secrets.DISCORD_WEBHOOK_URL }}
