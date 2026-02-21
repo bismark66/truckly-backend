@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # PostgreSQL Database with PostGIS
   postgres:
-    image: postgres:16-alpine
+    image: postgis/postgis:15-3.3
     container_name: truckly_postgres
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
