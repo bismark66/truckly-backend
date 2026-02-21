@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
@@ -13,7 +14,12 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const user = this.usersRepository.create(createUserDto);
+    // Hash password before saving
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    const user = this.usersRepository.create({
+      ...createUserDto,
+      password: hashedPassword,
+    });
     return this.usersRepository.save(user);
   }
 
@@ -26,22 +32,26 @@ export class UsersService {
   }
 
   findOneByEmail(email: string): Promise<User | null> {
-    return this.usersRepository.findOne({ 
+    return this.usersRepository.findOne({
       where: { email },
       select: ['id', 'email', 'password', 'role', 'firstName', 'lastName'], // Explicitly select password for auth
     });
   }
 
-  update(id: string, updateUserDto: UpdateUserDto) {
-console.log(id, updateUserDto);
-   const response = this.usersRepository.update(id, updateUserDto); 
+  async update(id: string, updateUserDto: UpdateUserDto) {
+    console.log(id, updateUserDto);
 
+    // If password is being updated, hash it first
+    if (updateUserDto.password) {
+      updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
+    }
+
+    const response = this.usersRepository.update(id, updateUserDto);
     return response;
   }
 
   remove(id: string) {
     return this.usersRepository.delete(id);
-    
   }
 
   /**
