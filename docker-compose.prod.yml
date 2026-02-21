@@ -3,19 +3,19 @@ version: '3.8'
 
 services:
   app-prod:
-    image: truckly-backend:production
     build:
       context: .
       dockerfile: Dockerfile
-    deploy:
-      replicas: 2
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
+    container_name: truckly_app
     restart: always
     environment:
       NODE_ENV: production
+    env_file:
+      - .env
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - truckly_network
