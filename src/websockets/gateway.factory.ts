@@ -11,6 +11,7 @@ import Redis from 'ioredis';
 import { BaseGateway, RedisChannelHandler } from './base.gateway';
 import { LocationGateway } from './location.gateway';
 import { ChatGateway } from './chat.gateway';
+import { BookingGateway } from './booking.gateway';
 import { generateClientName } from './client-name.util';
 
 const CONNECTED_CLIENTS_KEY = 'connected_clients';
@@ -46,6 +47,7 @@ export class GatewayFactory
     @Inject('REDIS_CLIENT') private readonly redisClient: Redis,
     private readonly locationGateway: LocationGateway,
     private readonly chatGateway: ChatGateway,
+    private readonly bookingGateway: BookingGateway,
   ) {}
 
   /**
@@ -54,7 +56,11 @@ export class GatewayFactory
    */
   afterInit(server: Server) {
     // Register all gateways
-    const gateways: BaseGateway[] = [this.locationGateway, this.chatGateway];
+    const gateways: BaseGateway[] = [
+      this.locationGateway,
+      this.chatGateway,
+      this.bookingGateway,
+    ];
 
     // Collect all channel handlers
     const channels: string[] = [];
@@ -111,4 +117,3 @@ export class GatewayFactory
     return Object.values(clients).map((c) => JSON.parse(c) as ConnectedClient);
   }
 }
-
