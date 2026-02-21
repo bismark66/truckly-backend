@@ -35,7 +35,7 @@ export class PaymentsService {
     if (!payment) {
       throw new BadRequestException('Payment not found');
     }
-    
+
     // Mock verification logic
     payment.status = PaymentStatus.SUCCESS;
     return this.paymentsRepository.save(payment);
