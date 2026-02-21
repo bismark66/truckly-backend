@@ -28,7 +28,14 @@
     "schema:sync": "npm run typeorm schema:sync",
     "db:reset": "npm run schema:drop && npm run migration:run && npm run seed",
     "db:clear": "ts-node src/database/scripts/clear-database.ts",
-    "seed": "ts-node src/database/seeds/seed.ts"
+    "seed": "ts-node src/database/seeds/seed.ts",
+    "docker:dev": "bash scripts/docker-dev.sh",
+    "docker:prod": "bash scripts/docker-prod.sh",
+    "docker:clean": "bash scripts/docker-clean.sh",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:tools": "docker-compose --profile tools up -d"
   },
   "dependencies": {
     "@nestjs/bull": "^11.0.4",
