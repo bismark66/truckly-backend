@@ -16,9 +16,7 @@ export interface RedisChannelHandler {
 export abstract class BaseGateway {
   protected server: Server;
 
-  constructor(
-    protected readonly redisPublisher: Redis,
-  ) {}
+  constructor(protected readonly redisPublisher: Redis) {}
 
   /**
    * Set the WebSocket server instance
