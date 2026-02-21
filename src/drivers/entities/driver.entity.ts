@@ -1,4 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
 export enum VehicleType {
@@ -31,6 +39,22 @@ export class Driver {
   })
   vehicleType: VehicleType;
 
+  // Vehicle capacity and capability fields for cargo matching
+  @Column({ type: 'float', nullable: true })
+  vehicleCapacity: number; // Capacity in kg
+
+  @Column({ type: 'float', nullable: true })
+  vehicleVolume: number; // Volume capacity in cubic meters
+
+  @Column({ default: false })
+  hasFlatbed: boolean; // Has flatbed configuration
+
+  @Column({ default: false })
+  hasDumpCapability: boolean; // Can dump cargo (tipper)
+
+  @Column({ type: 'int', nullable: true })
+  passengerSeats: number; // Number of passenger seats (for buses)
+
   @Column({ type: 'float', nullable: true })
   currentLatitude: number;
 
@@ -46,14 +70,17 @@ export class Driver {
   @Column({ default: false })
   isOnline: boolean;
 
-  @Column({ type: 'decimal', precision: 3, scale: 2, default: 0.00 })
+  @Column({ type: 'decimal', precision: 3, scale: 2, default: 0.0 })
   rating: number;
 
   @Column({ type: 'int', default: 0 })
   totalTrips: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0.00 })
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0.0 })
   totalEarnings: number;
+
+  @Column({ nullable: true })
+  fcmToken: string;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -61,4 +88,3 @@ export class Driver {
   @UpdateDateColumn()
   updatedAt: Date;
 }
-
