@@ -15,7 +15,6 @@ export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger(LoggingInterceptor.name);
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const req = context.switchToHttp().getRequest();
     const method = req.method;
     const url = req.url;
