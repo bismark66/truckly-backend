@@ -8,8 +8,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import { UserSession } from './entities/user-session.entity';
-import { DeviceInfoMiddleware } from '../common/middlewares/deviceInfo.middleware';
-import { CronModule } from '../cron/cron.module';
+import { DeviceInfoMiddleware } from '../../common/middlewares/deviceInfo.middleware';
+import { CronModule } from '../../cron/cron.module';
 
 @Module({
   imports: [

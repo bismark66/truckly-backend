@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { UserSession } from '../../auth/entities/user-session.entity';
+import { UserSession } from '../../resources/auth/entities/user-session.entity';
 
 @Injectable()
 export class CleanExpiredSessionsCron {

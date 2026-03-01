@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserSession } from '../auth/entities/user-session.entity';
+import { UserSession } from '../resources/auth/entities/user-session.entity';
 import { CleanExpiredSessionsCron } from './processors/clean-expired-sessions.cron';
 
 @Module({
