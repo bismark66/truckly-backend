@@ -38,6 +38,7 @@
     "docker:tools": "docker-compose --profile tools up -d"
   },
   "dependencies": {
+    "@faker-js/faker": "^10.1.0",
     "@nestjs/bull": "^11.0.4",
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/cache-manager": "^3.0.1",
@@ -49,6 +50,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/platform-socket.io": "^11.1.9",
+    "@nestjs/schedule": "^6.1.1",
     "@nestjs/swagger": "^11.2.3",
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.1.9",
@@ -71,8 +73,7 @@
     "socket.io": "^4.8.1",
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.27",
-    "uuid": "^13.0.0",
-    "@faker-js/faker": "^10.1.0"
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
