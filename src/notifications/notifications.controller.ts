@@ -15,7 +15,7 @@ import {
 } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { UserRole } from '../users/entities/user.entity';
+import { UserType } from '../users/entities/user.entity';
 
 @ApiTags('Notifications')
 @ApiBearerAuth()
@@ -48,10 +48,10 @@ export class NotificationsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async registerToken(@Request() req, @Body('fcmToken') fcmToken: string) {
     const userId = req.user.userId;
-    const userRole = req.user.role;
+    const userRole = req.user.userType;
 
     // Register token based on user role
-    if (userRole === UserRole.DRIVER) {
+    if (userRole === UserType.DRIVER) {
       // For drivers, we need to get their driver profile ID
       // This should be handled via the drivers endpoint instead
       return {
@@ -72,9 +72,9 @@ export class NotificationsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async clearToken(@Request() req) {
     const userId = req.user.userId;
-    const userRole = req.user.role;
+    const userRole = req.user.userType;
 
-    if (userRole === UserRole.DRIVER) {
+    if (userRole === UserType.DRIVER) {
       return {
         message:
           'Drivers should manage tokens via /drivers/me/fcm-token endpoint',

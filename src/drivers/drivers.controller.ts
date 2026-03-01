@@ -25,7 +25,7 @@ import { UpdateDriverDto } from './dto/update-driver.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/entities/user.entity';
+import { UserType } from '../users/entities/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @ApiTags('Drivers')
@@ -39,7 +39,7 @@ export class DriversController {
   ) {}
 
   @Post()
-  @Roles(UserRole.DRIVER)
+  @Roles(UserType.DRIVER)
   @ApiOperation({ summary: 'Create driver profile' })
   @ApiResponse({
     status: 201,
@@ -51,7 +51,7 @@ export class DriversController {
   }
 
   @Get('profile')
-  @Roles(UserRole.DRIVER)
+  @Roles(UserType.DRIVER)
   @ApiOperation({ summary: 'Get current driver profile' })
   @ApiResponse({ status: 200, description: 'Driver profile retrieved' })
   async getProfile(@Request() req) {
@@ -59,7 +59,7 @@ export class DriversController {
   }
 
   @Patch('me/fcm-token')
-  @Roles(UserRole.DRIVER)
+  @Roles(UserType.DRIVER)
   @ApiOperation({
     summary: 'Register or update FCM token for push notifications',
   })
@@ -84,7 +84,7 @@ export class DriversController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserType.ADMIN)
   @UseInterceptors(CacheInterceptor)
   @ApiOperation({ summary: 'Get all drivers (Admin only)' })
   @ApiResponse({ status: 200, description: 'List of all drivers' })
@@ -93,7 +93,7 @@ export class DriversController {
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserType.ADMIN)
   @ApiOperation({ summary: 'Get driver by ID (Admin only)' })
   @ApiParam({ name: 'id', description: 'Driver ID' })
   @ApiResponse({ status: 200, description: 'Driver found' })

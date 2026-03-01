@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-export enum UserRole {
+export enum UserType {
   ADMIN = 'ADMIN',
   CUSTOMER = 'CUSTOMER',
   DRIVER = 'DRIVER',
@@ -35,10 +35,10 @@ export class User {
 
   @Column({
     type: 'enum',
-    enum: UserRole,
-    default: UserRole.CUSTOMER,
+    enum: UserType,
+    default: UserType.CUSTOMER,
   })
-  role: UserRole;
+  userType: UserType;
 
   @Column({ nullable: true })
   avatar: string;
@@ -46,11 +46,11 @@ export class User {
   @Column({ default: false })
   isVerified: boolean;
 
+  @Column({ default: false })
+  isGoogleAuthEnabled: boolean;
+
   @Column({ nullable: true, unique: true })
   googleId: string;
-
-  @Column({ nullable: true, select: false })
-  refreshToken: string;
 
   @Column({ nullable: true, select: false })
   resetPasswordToken: string;

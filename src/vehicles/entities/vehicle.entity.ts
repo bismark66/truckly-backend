@@ -40,7 +40,23 @@ export class Vehicle {
   type: VehicleType;
 
   @Column({ type: 'float', nullable: true })
-  capacity: number; // e.g., tons or seats
+  capacity: number; // Legacy field - use vehicleCapacity instead
+
+  // Vehicle capacity and capability fields for cargo matching
+  @Column({ type: 'float', nullable: true })
+  vehicleCapacity: number; // Capacity in kg
+
+  @Column({ type: 'float', nullable: true })
+  vehicleVolume: number; // Volume capacity in cubic meters
+
+  @Column({ default: false })
+  hasFlatbed: boolean; // Has flatbed configuration
+
+  @Column({ default: false })
+  hasDumpCapability: boolean; // Can dump cargo (tipper)
+
+  @Column({ type: 'int', nullable: true })
+  passengerSeats: number; // Number of passenger seats (for buses)
 
   @Column({
     type: 'enum',

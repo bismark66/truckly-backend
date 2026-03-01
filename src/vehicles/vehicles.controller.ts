@@ -22,7 +22,7 @@ import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/entities/user.entity';
+import { UserType } from '../users/entities/user.entity';
 import { LogisticsService } from '../transport/logistics.service';
 import { CargoRequirementsDto } from '../bookings/dto/cargo-requirements.dto';
 
@@ -37,7 +37,7 @@ export class VehiclesController {
   ) {}
 
   @Post()
-  @Roles(UserRole.FLEET_OWNER)
+  @Roles(UserType.FLEET_OWNER)
   @ApiOperation({ summary: 'Add vehicle to fleet' })
   @ApiResponse({ status: 201, description: 'Vehicle added successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
@@ -46,7 +46,7 @@ export class VehiclesController {
   }
 
   @Get()
-  @Roles(UserRole.FLEET_OWNER)
+  @Roles(UserType.FLEET_OWNER)
   @ApiOperation({ summary: 'Get all vehicles in fleet' })
   @ApiResponse({ status: 200, description: 'List of vehicles' })
   findAll(@Request() req) {
@@ -54,7 +54,7 @@ export class VehiclesController {
   }
 
   @Get(':id')
-  @Roles(UserRole.FLEET_OWNER, UserRole.ADMIN)
+  @Roles(UserType.FLEET_OWNER, UserType.ADMIN)
   @ApiOperation({ summary: 'Get vehicle by ID' })
   @ApiParam({ name: 'id', description: 'Vehicle ID' })
   @ApiResponse({ status: 200, description: 'Vehicle found' })
@@ -73,7 +73,7 @@ export class VehiclesController {
   }
 
   @Post(':id/cargo-check')
-  @Roles(UserRole.FLEET_OWNER, UserRole.ADMIN)
+  @Roles(UserType.FLEET_OWNER, UserType.ADMIN)
   @ApiOperation({
     summary: 'Check if vehicle can handle specific cargo requirements',
   })
