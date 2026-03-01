@@ -238,7 +238,7 @@ ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "fcmToken" character varying;
 ### 3. **Mobile App Integration**
 
 - Register FCM tokens on app login: `PATCH /drivers/me/fcm-token`
-- Connect to WebSocket and join room: `socket.emit('joinRoom', { userId, role: 'driver' })`
+- Connect to WebSocket and join room: `socket.emit('joinRoom', { userId, userType: 'driver' })`
 - Listen for `bookingRequest` events
 - Respond with `acceptBooking` or `rejectBooking` events
 
@@ -267,7 +267,7 @@ PATCH /drivers/me/fcm-token
 
 # WebSocket connection
 const socket = io('http://localhost:3000');
-socket.emit('joinRoom', { userId: 'driver-id', role: 'driver' });
+socket.emit('joinRoom', { userId: 'driver-id', userType: 'driver' });
 socket.on('bookingRequest', (data) => {
   console.log('New booking:', data);
   // Accept: socket.emit('acceptBooking', { bookingId: data.id, driverId: 'driver-id' });
