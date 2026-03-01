@@ -148,11 +148,10 @@ export class AuthController {
     return {
       sessions: sessions.map((session) => ({
         id: session.id,
-        deviceInfo: session.deviceInfo,
+        deviceType: session.deviceType,
         ipAddress: session.ipAddress,
         createdAt: session.createdAt,
         lastUsedAt: session.lastUsedAt,
-        accessTokenExpiresAt: session.accessTokenExpiresAt,
         refreshTokenExpiresAt: session.refreshTokenExpiresAt,
       })),
     };
