@@ -1,22 +1,22 @@
 import { DataSource } from 'typeorm';
 import { faker } from '@faker-js/faker';
 import * as bcrypt from 'bcrypt';
-import { User, UserType } from '../../users/entities/user.entity';
-import { Driver, VehicleType } from '../../drivers/entities/driver.entity';
-import { DriverStatus } from '../../drivers/driver-status.service';
-import { FleetOwner } from '../../fleet-owners/entities/fleet-owner.entity';
-import { Vehicle, VehicleStatus } from '../../vehicles/entities/vehicle.entity';
+import { User, UserType } from '../../resources/users/entities/user.entity';
+import { Driver, VehicleType } from '../../resources/drivers/entities/driver.entity';
+import { DriverStatus } from '../../resources/drivers/driver-status.service';
+import { FleetOwner } from '../../resources/fleet-owners/entities/fleet-owner.entity';
+import { Vehicle, VehicleStatus } from '../../resources/vehicles/entities/vehicle.entity';
 import {
   Booking,
   BookingStatus,
   BookingType,
-} from '../../bookings/entities/booking.entity';
-import { Payment, PaymentStatus } from '../../payments/entities/payment.entity';
+} from '../../resources/bookings/entities/booking.entity';
+import { Payment, PaymentStatus } from '../../resources/payments/entities/payment.entity';
 import {
   Document,
   DocumentType,
-} from '../../documents/entities/document.entity';
-import { CargoType } from '../../transport/factory';
+} from '../../resources/documents/entities/document.entity';
+import { CargoType } from '../../resources/transport/factory';
 import * as dotenv from 'dotenv';
 import Redis from 'ioredis';
 

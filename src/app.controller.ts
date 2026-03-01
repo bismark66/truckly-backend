@@ -1,8 +1,8 @@
 import { Controller, Get, Post, Body } from '@nestjs/common';
 import { AppService } from './app.service';
-import { LocationGateway } from './websockets/location.gateway';
-import { FindDriversDto } from './drivers/dto/find-drivers.dto';
-import { GatewayFactory } from './websockets/gateway.factory';
+import { LocationGateway } from './resources/websockets/location.gateway';
+import { FindDriversDto } from './resources/drivers/dto/find-drivers.dto';
+import { GatewayFactory } from './resources/websockets/gateway.factory';
 
 @Controller()
 export class AppController {

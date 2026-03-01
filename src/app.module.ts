@@ -5,20 +5,21 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { BullModule } from '@nestjs/bull';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UsersModule } from './users/users.module';
-import { AuthModule } from './auth/auth.module';
-import { DriversModule } from './drivers/drivers.module';
-import { FleetOwnersModule } from './fleet-owners/fleet-owners.module';
-import { DocumentsModule } from './documents/documents.module';
-import { BookingsModule } from './bookings/bookings.module';
-import { PaymentsModule } from './payments/payments.module';
+import { UsersModule } from './resources/users/users.module';
+import { AuthModule } from './resources/auth/auth.module';
+import { DriversModule } from './resources/drivers/drivers.module';
+import { FleetOwnersModule } from './resources/fleet-owners/fleet-owners.module';
+import { DocumentsModule } from './resources/documents/documents.module';
+import { BookingsModule } from './resources/bookings/bookings.module';
+import { PaymentsModule } from './resources/payments/payments.module';
 import { RedisModule } from './redis/redis.module';
-import { WebSocketsModule } from './websockets/websockets.module';
-import { VehiclesModule } from './vehicles/vehicles.module';
-import { ChatModule } from './chat/chat.module';
-import { NotificationsModule } from './notifications/notifications.module';
-import { QueuesModule } from './queues/queues.module';
+import { WebSocketsModule } from './resources/websockets/websockets.module';
+import { VehiclesModule } from './resources/vehicles/vehicles.module';
+import { ChatModule } from './resources/chat/chat.module';
+import { NotificationsModule } from './resources/notifications/notifications.module';
+import { QueuesModule } from './resources/queues/queues.module';
 import { CronModule } from './cron/cron.module';
+import { DriverEarningsModule } from './resources/driver-earnings/driver-earnings.module';
 import * as redisStore from 'cache-manager-redis-store';
 import { ScheduleModule } from '@nestjs/schedule';
 
@@ -80,6 +81,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     UsersModule,
     AuthModule,
     DriversModule,
+    DriverEarningsModule,
     FleetOwnersModule,
     VehiclesModule,
     DocumentsModule,

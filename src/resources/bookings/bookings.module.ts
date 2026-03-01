@@ -13,7 +13,7 @@ import { VehiclesModule } from '../vehicles/vehicles.module';
 import { DriversModule } from '../drivers/drivers.module';
 import { WebSocketsModule } from '../websockets/websockets.module';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { RedisModule } from '../redis/redis.module';
+import { RedisModule } from '../../redis/redis.module';
 import { QueuesModule } from '../queues/queues.module';
 
 @Module({

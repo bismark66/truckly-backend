@@ -1,8 +1,8 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { QUEUES } from '../../common/constants/queues.constants';
-import { BookingAllocationService } from 'src/bookings/booking-allocation.service';
+import { QUEUES } from '../../../common/constants/queues.constants';
+import { BookingAllocationService } from '../../bookings/booking-allocation.service';
 
 @Processor(QUEUES.BOOKING_ALLOCATION)
 export class BookingAllocationProcessor extends WorkerHost {
