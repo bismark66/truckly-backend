@@ -14,6 +14,7 @@ import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bullmq';
 import { Booking, BookingStatus } from './entities/booking.entity';
 import { Driver } from '../drivers/entities/driver.entity';
+import { Vehicle } from '../vehicles/entities/vehicle.entity';
 import { DriversService } from '../drivers/drivers.service';
 import { LogisticsService } from '../transport/logistics.service';
 import { LocationGateway } from '../websockets/location.gateway';
@@ -41,6 +42,8 @@ export class BookingAllocationService {
     private bookingsRepository: Repository<Booking>,
     @InjectRepository(Driver)
     private driversRepository: Repository<Driver>,
+    @InjectRepository(Vehicle)
+    private vehiclesRepository: Repository<Vehicle>,
     private driversService: DriversService,
     private logisticsService: LogisticsService,
     @Inject(forwardRef(() => LocationGateway))
@@ -124,25 +127,35 @@ export class BookingAllocationService {
       return matches.slice(0, limit);
     }
 
-    // Validate cargo requirements against each driver's vehicle
+    // Validate cargo requirements against each driver's assigned vehicle
     const matches: MatchedDriver[] = [];
 
     for (const driver of drivers) {
       try {
         this.logger.log(
-          `Validating driver ${driver.id} - Vehicle: ${driver.vehicleType} against cargo requirements: ${JSON.stringify(
+          `Validating driver ${driver.id} - Vehicle Type: ${driver.vehicleType} against cargo requirements: ${JSON.stringify(
             booking.cargoRequirements,
           )}`,
         );
 
-        // Validate driver's vehicle against cargo requirements using driver entity directly
-        const validation = this.logisticsService.validateDriverVehicle(
-          driver,
+        // Fetch the actual vehicle assigned to this driver
+        const vehicle = await this.vehiclesRepository.findOne({
+          where: { assignedDriverId: driver.id },
+        });
+
+        if (!vehicle) {
+          this.logger.debug(`❌ Driver ${driver.id} has no assigned vehicle`);
+          continue;
+        }
+
+        // Validate the actual vehicle against cargo requirements
+        const validation = this.logisticsService.validateVehicle(
+          vehicle,
           booking.cargoRequirements,
         );
 
         this.logger.log(
-          `Driver ${driver.id} validation result: ${JSON.stringify(
+          `Driver ${driver.id} vehicle validation result: ${JSON.stringify(
             validation,
           )}`,
         );
@@ -157,15 +170,15 @@ export class BookingAllocationService {
             driver,
             distance,
             matchScore: validation.matchScore,
-            vehicleId: driver.id, // Using driver ID as vehicle reference
+            vehicleId: vehicle.id, // Using actual vehicle ID
           });
 
           this.logger.log(
-            `✅ Driver ${driver.id} matched - Vehicle: ${driver.vehicleType}, Score: ${validation.matchScore}, Distance: ${distance}km`,
+            `✅ Driver ${driver.id} matched - Vehicle: ${vehicle.type}, Vehicle ID: ${vehicle.id}, Score: ${validation.matchScore}, Distance: ${distance}km`,
           );
         } else {
           this.logger.debug(
-            `❌ Driver ${driver.id} cannot handle cargo: ${validation.reason}`,
+            `❌ Driver ${driver.id} vehicle cannot handle cargo: ${validation.reason}`,
           );
         }
       } catch (error: any) {
