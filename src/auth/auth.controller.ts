@@ -1,10 +1,21 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+  Get,
+  Ip,
+  Headers,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBody,
   ApiBearerAuth,
+  ApiHeader,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -31,8 +42,17 @@ export class AuthController {
   })
   @ApiResponse({ status: 200, description: 'Successfully logged in' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async login(@Body() body: { email: string; password: string }) {
-    return this.authService.login(body.email, body.password);
+  async login(
+    @Body() body: { email: string; password: string },
+    @Request() req,
+  ) {
+    // Use device info from middleware
+    const deviceInfo = req.deviceInfo || {
+      ipAddress: '127.0.0.1',
+      userAgent: 'Unknown',
+      deviceType: 'Unknown',
+    };
+    return this.authService.login(body.email, body.password, deviceInfo);
   }
 
   @Post('register')
@@ -93,5 +113,48 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
   async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
     return this.authService.refreshToken(refreshTokenDto.refresh_token);
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Logout user (revoke refresh token)' })
+  @ApiResponse({ status: 200, description: 'Logged out successfully' })
+  @ApiResponse({ status: 401, description: 'Invalid token' })
+  async logout(@Body() refreshTokenDto: RefreshTokenDto) {
+    await this.authService.logout(refreshTokenDto.refresh_token);
+    return { message: 'Logged out successfully' };
+  }
+
+  @Post('logout-all')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Logout from all devices' })
+  @ApiResponse({ status: 200, description: 'Logged out from all devices' })
+  async logoutAll(@Request() req) {
+    await this.authService.logoutAll(req.user.userId);
+    return { message: 'Logged out from all devices successfully' };
+  }
+
+  @Get('sessions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get user active sessions' })
+  @ApiResponse({ status: 200, description: 'Active sessions retrieved' })
+  async getSessions(@Request() req) {
+    const sessions = await this.authService.getUserActiveSessions(
+      req.user.userId,
+    );
+    return {
+      sessions: sessions.map((session) => ({
+        id: session.id,
+        deviceInfo: session.deviceInfo,
+        ipAddress: session.ipAddress,
+        createdAt: session.createdAt,
+        lastUsedAt: session.lastUsedAt,
+        accessTokenExpiresAt: session.accessTokenExpiresAt,
+        refreshTokenExpiresAt: session.refreshTokenExpiresAt,
+      })),
+    };
   }
 }
