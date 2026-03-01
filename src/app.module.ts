@@ -18,6 +18,7 @@ import { VehiclesModule } from './resources/vehicles/vehicles.module';
 import { ChatModule } from './resources/chat/chat.module';
 import { NotificationsModule } from './resources/notifications/notifications.module';
 import { QueuesModule } from './resources/queues/queues.module';
+import { DriverEarningsModule } from './resources/driver-earnings/driver-earnings.module';
 import * as redisStore from 'cache-manager-redis-store';
 
 @Module({
@@ -77,6 +78,7 @@ import * as redisStore from 'cache-manager-redis-store';
     UsersModule,
     AuthModule,
     DriversModule,
+    DriverEarningsModule,
     FleetOwnersModule,
     VehiclesModule,
     DocumentsModule,
