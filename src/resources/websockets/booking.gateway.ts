@@ -90,27 +90,29 @@ export class BookingGateway
       // Verify JWT token
       const payload = this.jwtService.verify(token) as {
         sub: string;
-        role: string;
+        userType: string;
       };
       const userId = payload.sub;
-      const role = payload.role;
+      const userType = payload.userType;
 
-      this.logger.log(`Client ${client.id} authenticated as ${role} ${userId}`);
+      this.logger.log(
+        `Client ${client.id} authenticated as ${userType} ${userId}`,
+      );
 
       // Auto-join personal room based on role (normalize to lowercase for consistency)
-      const roomName = `${role.toLowerCase()}_${userId}`;
+      const roomName = `${userType.toLowerCase()}_${userId}`;
       void client.join(roomName);
       this.logger.log(`Client ${client.id} auto-joined room ${roomName}`);
 
       // Track driver sockets for room management
-      if (role.toLowerCase() === 'driver') {
+      if (userType.toLowerCase() === 'driver') {
         this.driverSockets.set(userId, client.id);
         this.logger.log(`Tracking driver socket: ${userId} -> ${client.id}`);
       }
 
       // Store userId on socket for later use
       (client.data as any).userId = userId;
-      (client.data as any).role = role;
+      (client.data as any).userType = userType;
     } catch (error) {
       this.logger.error(
         `JWT verification failed for client ${client.id}: ${(error as Error).message}`,
@@ -124,9 +126,9 @@ export class BookingGateway
 
     // Clean up driver socket tracking
     const userId = (client.data as any).userId as string | undefined;
-    const role = (client.data as any).role as string | undefined;
+    const userType = (client.data as any).userType as string | undefined;
 
-    if (role?.toLowerCase() === 'driver' && userId) {
+    if (userType?.toLowerCase() === 'driver' && userId) {
       this.driverSockets.delete(userId);
       this.logger.log(`Removed driver socket tracking: ${userId}`);
 
@@ -188,14 +190,14 @@ export class BookingGateway
    */
   @SubscribeMessage('joinRoom')
   handleJoinRoom(
-    @MessageBody() data: { userId: string; role: 'driver' | 'customer' },
+    @MessageBody() data: { userId: string; userType: 'driver' | 'customer' },
     @ConnectedSocket() client: Socket,
   ) {
-    // Normalize role to lowercase for consistency with room naming
-    const roomName = `${data.role.toLowerCase()}_${data.userId}`;
+    // Normalize userType to lowercase for consistency with room naming
+    const roomName = `${data.userType.toLowerCase()}_${data.userId}`;
     void client.join(roomName);
     this.logger.log(
-      `User ${data.userId} (${data.role}) joined room ${roomName}`,
+      `User ${data.userId} (${data.userType}) joined room ${roomName}`,
     );
     return { event: 'roomJoined', data: { room: roomName } };
   }

@@ -39,21 +39,11 @@ export class Driver {
   })
   vehicleType: VehicleType;
 
-  // Vehicle capacity and capability fields for cargo matching
-  @Column({ type: 'float', nullable: true })
-  vehicleCapacity: number; // Capacity in kg
-
-  @Column({ type: 'float', nullable: true })
-  vehicleVolume: number; // Volume capacity in cubic meters
-
   @Column({ default: false })
-  hasFlatbed: boolean; // Has flatbed configuration
+  isProfileCompleted: boolean;
 
-  @Column({ default: false })
-  hasDumpCapability: boolean; // Can dump cargo (tipper)
-
-  @Column({ type: 'int', nullable: true })
-  passengerSeats: number; // Number of passenger seats (for buses)
+  @Column({ type: 'text', nullable: true })
+  referralCode: string;
 
   @Column({ type: 'float', nullable: true })
   currentLatitude: number;

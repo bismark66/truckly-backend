@@ -34,7 +34,7 @@ export class UsersService {
   findOneByEmail(email: string): Promise<User | null> {
     return this.usersRepository.findOne({
       where: { email },
-      select: ['id', 'email', 'password', 'role', 'firstName', 'lastName'], // Explicitly select password for auth
+      select: ['id', 'email', 'password', 'userType', 'firstName', 'lastName'], // Explicitly select password for auth
     });
   }
 
@@ -60,7 +60,7 @@ export class UsersService {
   findOneWithPassword(id: string): Promise<User | null> {
     return this.usersRepository.findOne({
       where: { id },
-      select: ['id', 'email', 'password', 'role', 'firstName', 'lastName'],
+      select: ['id', 'email', 'password', 'userType', 'firstName', 'lastName'],
     });
   }
 

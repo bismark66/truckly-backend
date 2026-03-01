@@ -27,7 +27,7 @@ import { UpdateDocumentDto } from './dto/update-document.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/entities/user.entity';
+import { UserType } from '../users/entities/user.entity';
 
 @ApiTags('Documents')
 @ApiBearerAuth()

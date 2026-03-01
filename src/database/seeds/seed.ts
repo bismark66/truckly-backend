@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
 import { faker } from '@faker-js/faker';
 import * as bcrypt from 'bcrypt';
-import { User, UserRole } from '../../resources/users/entities/user.entity';
+import { User, UserType } from '../../resources/users/entities/user.entity';
 import { Driver, VehicleType } from '../../resources/drivers/entities/driver.entity';
 import { DriverStatus } from '../../resources/drivers/driver-status.service';
 import { FleetOwner } from '../../resources/fleet-owners/entities/fleet-owner.entity';
@@ -314,7 +314,7 @@ async function seed() {
       firstName: faker.person.firstName(),
       lastName: faker.person.lastName(),
       phoneNumber: `+233${faker.string.numeric(9)}`,
-      role: UserRole.ADMIN,
+      userType: UserType.ADMIN,
     });
     users.push(await userRepo.save(user));
   }
@@ -327,7 +327,7 @@ async function seed() {
       firstName: faker.person.firstName(),
       lastName: faker.person.lastName(),
       phoneNumber: `+233${faker.string.numeric(9)}`,
-      role: UserRole.CUSTOMER,
+      userType: UserType.CUSTOMER,
     });
     users.push(await userRepo.save(user));
   }
@@ -341,7 +341,7 @@ async function seed() {
       firstName: faker.person.firstName(),
       lastName: faker.person.lastName(),
       phoneNumber: `+233${faker.string.numeric(9)}`,
-      role: UserRole.DRIVER,
+      userType: UserType.DRIVER,
     });
     driverUsers.push(await userRepo.save(user));
     users.push(driverUsers[i]);
@@ -356,7 +356,7 @@ async function seed() {
       firstName: faker.person.firstName(),
       lastName: faker.person.lastName(),
       phoneNumber: `+233${faker.string.numeric(9)}`,
-      role: UserRole.FLEET_OWNER,
+      userType: UserType.FLEET_OWNER,
     });
     fleetOwnerUsers.push(await userRepo.save(user));
     users.push(fleetOwnerUsers[i]);
@@ -371,13 +371,11 @@ async function seed() {
   for (const driverUser of driverUsers) {
     const location = getGhanaLocation();
     const vehicleType = faker.helpers.arrayElement(Object.values(VehicleType));
-    const vehicleCapacitySpecs = getVehicleCapacityByType(vehicleType);
 
     const driver = driverRepo.create({
       userId: driverUser.id,
       licenseNumber: `GHA-${faker.string.alphanumeric(8).toUpperCase()}`,
       vehicleType,
-      ...vehicleCapacitySpecs, // Spread vehicle capacity specs
       currentLatitude: location.lat,
       currentLongitude: location.lng,
       lastSeenAt: new Date(),
@@ -402,9 +400,7 @@ async function seed() {
     ]);
     await redis.hset('driver-status', savedDriver.id, status);
 
-    console.log(
-      `  ✓ Driver ${savedDriver.id}: ${vehicleType} (${vehicleCapacitySpecs.vehicleCapacity}kg, ${vehicleCapacitySpecs.vehicleVolume}m³)`,
-    );
+    console.log(`  ✓ Driver ${savedDriver.id}: ${vehicleType}`);
   }
 
   console.log(`✅ Created ${drivers.length} drivers (also added to Redis)\n`);
@@ -431,16 +427,23 @@ async function seed() {
   for (let i = 0; i < 10; i++) {
     const fleetOwner = faker.helpers.arrayElement(fleetOwners);
     const assignedDriver = i < 3 ? drivers[i] : null; // Assign first 3 vehicles to drivers
+    const vehicleType = faker.helpers.arrayElement(Object.values(VehicleType));
+    const vehicleCapacitySpecs = getVehicleCapacityByType(vehicleType);
 
     const vehicle = vehicleRepo.create({
       fleetOwnerId: fleetOwner.id,
       licensePlate: generateLicensePlate(),
-      type: faker.helpers.arrayElement(Object.values(VehicleType)),
-      capacity: faker.number.float({ min: 5, max: 50, fractionDigits: 1 }),
+      type: vehicleType,
+      capacity: vehicleCapacitySpecs.vehicleCapacity / 1000, // Legacy field in tons
+      ...vehicleCapacitySpecs, // Add all vehicle capability specs
       status: faker.helpers.arrayElement(Object.values(VehicleStatus)),
       assignedDriverId: assignedDriver?.id,
     });
     vehicles.push(await vehicleRepo.save(vehicle));
+
+    console.log(
+      `  ✓ Vehicle ${vehicle.licensePlate}: ${vehicleType} (${vehicleCapacitySpecs.vehicleCapacity}kg, ${vehicleCapacitySpecs.vehicleVolume}m³)`,
+    );
   }
 
   console.log(`✅ Created ${vehicles.length} vehicles\n`);
@@ -449,7 +452,7 @@ async function seed() {
   console.log('📦 Seeding bookings...');
   const bookings: Booking[] = [];
 
-  const customers = users.filter((u) => u.role === UserRole.CUSTOMER);
+  const customers = users.filter((u) => u.userType === UserType.CUSTOMER);
 
   for (let i = 0; i < 15; i++) {
     const customer = faker.helpers.arrayElement(customers);

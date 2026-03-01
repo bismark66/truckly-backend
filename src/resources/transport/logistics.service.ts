@@ -119,11 +119,7 @@ export class LogisticsService {
     // Score all vehicles
     const matches = availableVehicles
       .map((vehicle) => {
-        const strategy = this.roadLogistics.createTransport(vehicle.type);
-        const result = strategy.matchScore(
-          cargoRequirements,
-          vehicle.capacity || 0,
-        );
+        const result = this.validateVehicle(vehicle, cargoRequirements);
 
         return {
           vehicle,
@@ -157,8 +153,7 @@ export class LogisticsService {
       throw new NotFoundException(`Vehicle with ID ${vehicleId} not found`);
     }
 
-    const strategy = this.roadLogistics.createTransport(vehicle.type);
-    return strategy.matchScore(cargoRequirements, vehicle.capacity || 0);
+    return this.validateVehicle(vehicle, cargoRequirements);
   }
 
   /**
@@ -182,12 +177,7 @@ export class LogisticsService {
       );
     }
 
-    const strategy = this.roadLogistics.createTransport(vehicle.type);
-    const result = strategy.matchScore(
-      cargoRequirements,
-      vehicle.capacity || 0,
-    );
-
+    const result = this.validateVehicle(vehicle, cargoRequirements);
     return { vehicle, result };
   }
 
@@ -201,11 +191,7 @@ export class LogisticsService {
     let bestMatch: VehicleMatch | null = null;
 
     for (const vehicle of vehicles) {
-      const strategy = this.roadLogistics.createTransport(vehicle.type);
-      const result = strategy.matchScore(
-        cargoRequirements,
-        vehicle.capacity || 0,
-      );
+      const result = this.validateVehicle(vehicle, cargoRequirements);
 
       if (
         result.canHandle &&
@@ -224,9 +210,90 @@ export class LogisticsService {
   }
 
   /**
+   * Validate if a vehicle can handle cargo requirements
+   * @param vehicle - Vehicle entity with capability information
+   * @param cargoRequirements - Cargo specifications
+   * @returns Match result with validation details
+   */
+  validateVehicle(
+    vehicle: Vehicle,
+    cargoRequirements: CargoRequirements,
+  ): MatchResult {
+    // Check if vehicle type can handle cargo type
+    if (!canVehicleHandleCargoType(vehicle.type, cargoRequirements.cargoType)) {
+      return {
+        canHandle: false,
+        matchScore: 0,
+        reason: `${vehicle.type} cannot handle ${cargoRequirements.cargoType} cargo`,
+      };
+    }
+
+    // Check capacity
+    if (
+      vehicle.vehicleCapacity &&
+      cargoRequirements.weight > vehicle.vehicleCapacity
+    ) {
+      return {
+        canHandle: false,
+        matchScore: 0,
+        reason: `Vehicle capacity (${vehicle.vehicleCapacity}kg) insufficient for cargo weight (${cargoRequirements.weight}kg)`,
+      };
+    }
+
+    // Check volume
+    if (
+      cargoRequirements.volume &&
+      vehicle.vehicleVolume &&
+      cargoRequirements.volume > vehicle.vehicleVolume
+    ) {
+      return {
+        canHandle: false,
+        matchScore: 0,
+        reason: `Vehicle volume (${vehicle.vehicleVolume}m³) insufficient for cargo volume (${cargoRequirements.volume}m³)`,
+      };
+    }
+
+    // Check special requirements
+    if (cargoRequirements.requiresFlatbed && !vehicle.hasFlatbed) {
+      return {
+        canHandle: false,
+        matchScore: 0,
+        reason: 'Flatbed required but vehicle does not have flatbed',
+      };
+    }
+
+    if (cargoRequirements.requiresDump && !vehicle.hasDumpCapability) {
+      return {
+        canHandle: false,
+        matchScore: 0,
+        reason: 'Dump capability required but vehicle cannot dump',
+      };
+    }
+
+    if (
+      cargoRequirements.requiresPassengerSeats &&
+      (!vehicle.passengerSeats || vehicle.passengerSeats < 1)
+    ) {
+      return {
+        canHandle: false,
+        matchScore: 0,
+        reason: 'Passenger seats required but vehicle has none',
+      };
+    }
+
+    // Calculate match score using transport strategy
+    const strategy = this.roadLogistics.createTransport(vehicle.type);
+    return strategy.matchScore(
+      cargoRequirements,
+      vehicle.vehicleCapacity || vehicle.capacity || 5000,
+    );
+  }
+
+  /**
    * Validate if a driver's vehicle can handle cargo requirements
-   * Uses driver entity directly (not separate vehicle table)
-   * @param driver - Driver entity with vehicle information
+   * @deprecated Use validateVehicle with actual vehicle entity instead
+   * This method is kept for backward compatibility but should fetch the driver's assigned vehicle
+   * @param driver - Driver entity with vehicle type information
    * @param cargoRequirements - Cargo specifications
    * @returns Match result with validation details
    */
@@ -234,7 +301,9 @@ export class LogisticsService {
     driver: Driver,
     cargoRequirements: CargoRequirements,
   ): MatchResult {
-    // Check if vehicle type can handle cargo type
+    // For backward compatibility, we check if vehicle type is compatible
+    // But note: This doesn't check actual vehicle capabilities anymore
+    // Callers should use validateDriverWithVehicle or validateVehicle instead
     if (
       !canVehicleHandleCargoType(
         driver.vehicleType,
@@ -248,65 +317,13 @@ export class LogisticsService {
       };
     }
 
-    // Check capacity
-    if (
-      driver.vehicleCapacity &&
-      cargoRequirements.weight > driver.vehicleCapacity
-    ) {
-      return {
-        canHandle: false,
-        matchScore: 0,
-        reason: `Vehicle capacity (${driver.vehicleCapacity}kg) insufficient for cargo weight (${cargoRequirements.weight}kg)`,
-      };
-    }
-
-    // Check volume
-    if (
-      cargoRequirements.volume &&
-      driver.vehicleVolume &&
-      cargoRequirements.volume > driver.vehicleVolume
-    ) {
-      return {
-        canHandle: false,
-        matchScore: 0,
-        reason: `Vehicle volume (${driver.vehicleVolume}m³) insufficient for cargo volume (${cargoRequirements.volume}m³)`,
-      };
-    }
-
-    // Check special requirements
-    if (cargoRequirements.requiresFlatbed && !driver.hasFlatbed) {
-      return {
-        canHandle: false,
-        matchScore: 0,
-        reason: 'Flatbed required but vehicle does not have flatbed',
-      };
-    }
-
-    if (cargoRequirements.requiresDump && !driver.hasDumpCapability) {
-      return {
-        canHandle: false,
-        matchScore: 0,
-        reason: 'Dump capability required but vehicle cannot dump',
-      };
-    }
-
-    if (
-      cargoRequirements.requiresPassengerSeats &&
-      (!driver.passengerSeats || driver.passengerSeats < 1)
-    ) {
-      return {
-        canHandle: false,
-        matchScore: 0,
-        reason: 'Passenger seats required but vehicle has none',
-      };
-    }
-
-    // Calculate match score using transport strategy
-    const strategy = this.roadLogistics.createTransport(driver.vehicleType);
-    return strategy.matchScore(
-      cargoRequirements,
-      driver.vehicleCapacity || 5000,
-    );
+    // Return a basic match - actual validation requires vehicle entity
+    return {
+      canHandle: true, // Optimistic - actual check needs vehicle
+      matchScore: 50, // Low score to indicate incomplete validation
+      reason:
+        'Basic vehicle type compatibility check only - full validation requires vehicle entity',
+    };
   }
 
   /**

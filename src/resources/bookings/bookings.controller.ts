@@ -21,7 +21,7 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/entities/user.entity';
+import { UserType } from '../users/entities/user.entity';
 import { BookingStatus } from './entities/booking.entity';
 
 @ApiTags('Bookings')
@@ -32,7 +32,7 @@ export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
   @Post()
-  @Roles(UserRole.CUSTOMER)
+  @Roles(UserType.CUSTOMER)
   @ApiOperation({ summary: 'Create new booking and find available drivers' })
   @ApiResponse({
     status: 201,
@@ -48,7 +48,7 @@ export class BookingsController {
   @ApiOperation({ summary: 'Get bookings for current user' })
   @ApiResponse({ status: 200, description: 'List of bookings' })
   async findAll(@Request() req) {
-    if (req.user.role === UserRole.DRIVER) {
+    if (req.user.userType === UserType.DRIVER) {
       return this.bookingsService.findAll();
     }
     return this.bookingsService.findAllByCustomerId(req.user.userId);
@@ -63,7 +63,7 @@ export class BookingsController {
   }
 
   @Patch(':id/accept')
-  @Roles(UserRole.DRIVER)
+  @Roles(UserType.DRIVER)
   @ApiOperation({ summary: 'Accept booking (Driver only)' })
   @ApiParam({ name: 'id', description: 'Booking ID' })
   @ApiResponse({ status: 200, description: 'Booking accepted' })
@@ -104,7 +104,7 @@ export class BookingsController {
   }
 
   @Get(':id/suggested-vehicles')
-  @Roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.DRIVER)
+  @Roles(UserType.CUSTOMER, UserType.ADMIN, UserType.DRIVER)
   @ApiOperation({
     summary: 'Get suggested vehicles for booking based on cargo requirements',
   })

@@ -6,6 +6,7 @@ import { BookingAllocationService } from './booking-allocation.service';
 import { BookingStateService } from './booking-state.service';
 import { Booking } from './entities/booking.entity';
 import { Driver } from '../drivers/entities/driver.entity';
+import { Vehicle } from '../vehicles/entities/vehicle.entity';
 import { ChatModule } from '../chat/chat.module';
 import { TransportModule } from '../transport/transport.module';
 import { VehiclesModule } from '../vehicles/vehicles.module';
@@ -17,7 +18,7 @@ import { QueuesModule } from '../queues/queues.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Booking, Driver]),
+    TypeOrmModule.forFeature([Booking, Driver, Vehicle]),
     forwardRef(() => QueuesModule),
     ChatModule,
     TransportModule,

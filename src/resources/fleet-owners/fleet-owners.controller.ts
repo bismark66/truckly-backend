@@ -22,7 +22,7 @@ import { UpdateFleetOwnerDto } from './dto/update-fleet-owner.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/entities/user.entity';
+import { UserType } from '../users/entities/user.entity';
 
 @ApiTags('Fleet Owners')
 @ApiBearerAuth()
@@ -32,7 +32,7 @@ export class FleetOwnersController {
   constructor(private readonly fleetOwnersService: FleetOwnersService) {}
 
   @Post()
-  @Roles(UserRole.FLEET_OWNER)
+  @Roles(UserType.FLEET_OWNER)
   @ApiOperation({ summary: 'Create fleet owner profile' })
   @ApiResponse({ status: 201, description: 'Fleet owner created successfully' })
   @ApiResponse({
@@ -44,7 +44,7 @@ export class FleetOwnersController {
   }
 
   @Get('profile')
-  @Roles(UserRole.FLEET_OWNER)
+  @Roles(UserType.FLEET_OWNER)
   @ApiOperation({ summary: 'Get current fleet owner profile' })
   @ApiResponse({ status: 200, description: 'Fleet owner profile retrieved' })
   getProfile(@Request() req) {
@@ -52,7 +52,7 @@ export class FleetOwnersController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserType.ADMIN)
   @ApiOperation({ summary: 'Get all fleet owners (Admin only)' })
   @ApiResponse({ status: 200, description: 'List of all fleet owners' })
   findAll() {
@@ -60,7 +60,7 @@ export class FleetOwnersController {
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserType.ADMIN)
   @ApiOperation({ summary: 'Get fleet owner by ID (Admin only)' })
   @ApiParam({ name: 'id', description: 'Fleet Owner ID' })
   @ApiResponse({ status: 200, description: 'Fleet owner found' })
@@ -69,7 +69,7 @@ export class FleetOwnersController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.FLEET_OWNER, UserRole.ADMIN)
+  @Roles(UserType.FLEET_OWNER, UserType.ADMIN)
   @ApiOperation({ summary: 'Update fleet owner profile' })
   @ApiParam({ name: 'id', description: 'Fleet Owner ID' })
   @ApiResponse({ status: 200, description: 'Fleet owner updated successfully' })
