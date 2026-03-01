@@ -43,7 +43,7 @@ Authorization: Bearer <your_jwt_token>
 {
   "email": "user@example.com",
   "sub": "user-uuid",
-  "role": "CUSTOMER",
+  "userType": "CUSTOMER",
   "iat": 1234567890,
   "exp": 1234654290
 }
@@ -76,7 +76,7 @@ Create a new user account.
   "firstName": "John",
   "lastName": "Doe",
   "phoneNumber": "+233244123456",
-  "role": "CUSTOMER"
+  "userType": "CUSTOMER"
 }
 ```
 
@@ -86,7 +86,7 @@ Create a new user account.
 - `firstName`: Required, max 100 characters
 - `lastName`: Required, max 100 characters
 - `phoneNumber`: Optional, Ghana format preferred
-- `role`: Enum - `ADMIN`, `CUSTOMER`, `DRIVER`, `FLEET_OWNER` (default: `CUSTOMER`)
+- `userType`: Enum - `ADMIN`, `CUSTOMER`, `DRIVER`, `FLEET_OWNER` (default: `CUSTOMER`)
 
 **Success Response (201):**
 ```json
@@ -96,7 +96,7 @@ Create a new user account.
   "firstName": "John",
   "lastName": "Doe",
   "phoneNumber": "+233244123456",
-  "role": "CUSTOMER",
+  "userType": "CUSTOMER",
   "createdAt": "2026-01-29T01:50:15.000Z",
   "updatedAt": "2026-01-29T01:50:15.000Z"
 }
@@ -226,7 +226,7 @@ Retrieve all users.
     "firstName": "John",
     "lastName": "Doe",
     "phoneNumber": "+233244123456",
-    "role": "CUSTOMER",
+    "userType": "CUSTOMER",
     "createdAt": "2026-01-29T01:50:15.000Z",
     "updatedAt": "2026-01-29T01:50:15.000Z"
   }
@@ -1267,9 +1267,9 @@ Connect to WebSocket server at: `ws://localhost:3000` (or production URL)
 
 ## 11. Common Types & Enums
 
-### User Roles
+### User Types
 ```typescript
-enum UserRole {
+enum UserType {
   ADMIN = 'ADMIN',
   CUSTOMER = 'CUSTOMER',
   DRIVER = 'DRIVER',
@@ -1493,7 +1493,7 @@ curl -X POST http://localhost:3000/auth/register \
     "password": "password123",
     "firstName": "Test",
     "lastName": "User",
-    "role": "CUSTOMER"
+    "userType": "CUSTOMER"
   }'
 ```
 
