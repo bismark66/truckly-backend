@@ -18,7 +18,9 @@ import { VehiclesModule } from './vehicles/vehicles.module';
 import { ChatModule } from './chat/chat.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { QueuesModule } from './queues/queues.module';
+import { CronModule } from './cron/cron.module';
 import * as redisStore from 'cache-manager-redis-store';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -74,6 +76,7 @@ import * as redisStore from 'cache-manager-redis-store';
       }),
       inject: [ConfigService],
     }),
+    ScheduleModule.forRoot(),
     UsersModule,
     AuthModule,
     DriversModule,
@@ -87,6 +90,7 @@ import * as redisStore from 'cache-manager-redis-store';
     ChatModule,
     NotificationsModule,
     QueuesModule,
+    CronModule,
   ],
   controllers: [AppController],
   providers: [AppService],
