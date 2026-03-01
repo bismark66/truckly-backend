@@ -9,12 +9,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import { UserSession } from './entities/user-session.entity';
 import { DeviceInfoMiddleware } from '../common/middlewares/deviceInfo.middleware';
+import { CronModule } from '../cron/cron.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([UserSession]),
     UsersModule,
     PassportModule,
+    CronModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
