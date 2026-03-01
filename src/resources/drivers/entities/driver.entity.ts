@@ -3,13 +3,11 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToOne,
-  OneToMany,
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { DriverEarning } from '../../resources/driver-earnings/entities/driver-earning.entity';
 
 export enum VehicleType {
   TRAILER = 'TRAILER',
@@ -30,9 +28,6 @@ export class Driver {
 
   @Column()
   userId: string;
-
-  @OneToMany(() => DriverEarning, (earning) => earning.driver)
-  earnings: DriverEarning[];
 
   @Column()
   licenseNumber: string;
