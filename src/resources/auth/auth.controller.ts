@@ -16,15 +16,17 @@ import {
   ApiBody,
   ApiBearerAuth,
   ApiHeader,
+  ApiExtraModels,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { CreateUserDto } from '../users/dto/create-user.dto';
+import { RegisterUserDto } from './dto/register-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 @ApiTags('Authentication')
+@ApiExtraModels(RegisterUserDto)
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -56,11 +58,71 @@ export class AuthController {
   }
 
   @Post('register')
-  @ApiOperation({ summary: 'Register new user' })
+  @ApiOperation({
+    summary: 'Register a new user',
+    description:
+      'Creates a new user account. The `userType` field determines which additional fields are required:\n\n' +
+      '- **CUSTOMER** — base fields only\n' +
+      '- **DRIVER** — base fields + `licenseNumber`, `vehicleType` (and optional `referralCode`)\n' +
+      '- **FLEET_OWNER** — base fields + `companyName`, `registrationNumber` (and optional `fleetSize`, `operatingRegions`, `monthlyLoads`)',
+  })
+  @ApiBody({
+    schema: {
+      oneOf: [
+        {
+          title: 'Customer Registration',
+          type: 'object',
+          properties: {
+            userType: { type: 'string', enum: ['CUSTOMER'] },
+            email: { type: 'string', example: 'ada.mensah@example.com' },
+            password: { type: 'string', example: 'SecurePass123!' },
+            firstName: { type: 'string', example: 'Ada' },
+            lastName: { type: 'string', example: 'Mensah' },
+            phoneNumber: { type: 'string', example: '+233244000001' },
+          },
+          required: ['userType', 'email', 'password', 'firstName', 'lastName', 'phoneNumber'],
+        },
+        {
+          title: 'Driver Registration',
+          type: 'object',
+          properties: {
+            userType: { type: 'string', enum: ['DRIVER'] },
+            email: { type: 'string', example: 'kofi.adu@example.com' },
+            password: { type: 'string', example: 'SecurePass123!' },
+            firstName: { type: 'string', example: 'Kofi' },
+            lastName: { type: 'string', example: 'Adu' },
+            phoneNumber: { type: 'string', example: '+233244000002' },
+            licenseNumber: { type: 'string', example: 'GH-1234567-89' },
+            vehicleType: { type: 'string', enum: ['TRAILER', 'TIPPER_TRUCK', 'BUS', 'MINING_TRANSPORT', 'OTHER'], example: 'TRAILER' },
+            referralCode: { type: 'string', example: 'REF-ABC123' },
+          },
+          required: ['userType', 'email', 'password', 'firstName', 'lastName', 'phoneNumber', 'licenseNumber', 'vehicleType'],
+        },
+        {
+          title: 'Fleet Owner Registration',
+          type: 'object',
+          properties: {
+            userType: { type: 'string', enum: ['FLEET_OWNER'] },
+            email: { type: 'string', example: 'ama.owusu@example.com' },
+            password: { type: 'string', example: 'SecurePass123!' },
+            firstName: { type: 'string', example: 'Ama' },
+            lastName: { type: 'string', example: 'Owusu' },
+            phoneNumber: { type: 'string', example: '+233244000003' },
+            companyName: { type: 'string', example: 'Accra Haulage Ltd' },
+            registrationNumber: { type: 'string', example: 'REG-2024-001' },
+            fleetSize: { type: 'string', example: '10' },
+            operatingRegions: { type: 'array', items: { type: 'string' }, example: ['Greater Accra', 'Ashanti'] },
+            monthlyLoads: { type: 'string', example: '20+' },
+          },
+          required: ['userType', 'email', 'password', 'firstName', 'lastName', 'phoneNumber', 'companyName', 'registrationNumber'],
+        },
+      ],
+    },
+  })
   @ApiResponse({ status: 201, description: 'User successfully registered' })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  async register(@Body() createUserDto: CreateUserDto) {
-    return this.authService.register(createUserDto);
+  @ApiResponse({ status: 400, description: 'Validation error or duplicate account' })
+  async register(@Body() registerDto: RegisterUserDto) {
+    return this.authService.register(registerDto);
   }
 
   @Post('verify-token')

@@ -6,18 +6,23 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
+import { DriversService } from '../drivers/drivers.service';
+import { FleetOwnersService } from '../fleet-owners/fleet-owners.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { CreateUserDto } from '../users/dto/create-user.dto';
+import { UserType } from '../users/entities/user.entity';
 import { UserSession } from './entities/user-session.entity';
+import { RegisterUserDto } from './dto/register-user.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
+    private driversService: DriversService,
+    private fleetOwnersService: FleetOwnersService,
     private jwtService: JwtService,
     private configService: ConfigService,
     @InjectRepository(UserSession)
@@ -259,14 +264,60 @@ export class AuthService {
     await this.revokeSession(sessionId, 'manual_logout');
   }
 
-  async register(createUserDto: CreateUserDto) {
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+  async register(registerDto: RegisterUserDto) {
+    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+
     const user = await this.usersService.create({
-      ...createUserDto,
+      email: registerDto.email,
       password: hashedPassword,
+      firstName: registerDto.firstName,
+      lastName: registerDto.lastName,
+      phoneNumber: registerDto.phoneNumber,
+      userType: registerDto.userType,
     });
-    const { password, ...result } = user;
-    return result;
+
+    const { password, ...userResult } = user;
+
+    // Create type-specific sub-profile based on userType
+    if (registerDto.userType === UserType.DRIVER) {
+      if (!registerDto.licenseNumber || !registerDto.vehicleType) {
+        throw new BadRequestException('License number and vehicle type are required for driver registration');
+      }
+
+      const driver = await this.driversService.create(user.id, {
+        licenseNumber: registerDto.licenseNumber,
+        vehicleType: registerDto.vehicleType,
+      });
+
+      // Attach optional referral code if provided
+      if (registerDto.referralCode) {
+        await this.driversService['driversRepository'].update(driver.id, {
+          referralCode: registerDto.referralCode,
+        });
+        driver.referralCode = registerDto.referralCode;
+      }
+
+      return { ...userResult, driver };
+    }
+
+    if (registerDto.userType === UserType.FLEET_OWNER) {
+      if (!registerDto.companyName || !registerDto.registrationNumber) {
+        throw new BadRequestException('Company name and registration number are required for fleet owner registration');
+      }
+
+      const fleetOwner = await this.fleetOwnersService.create(user.id, {
+        companyName: registerDto.companyName,
+        registrationNumber: registerDto.registrationNumber,
+        fleetSize: registerDto.fleetSize,
+        operatingRegions: registerDto.operatingRegions,
+        monthlyLoads: registerDto.monthlyLoads,
+      });
+
+      return { ...userResult, fleetOwner };
+    }
+
+    // CUSTOMER / ADMIN — no sub-profile needed
+    return userResult;
   }
 
   async changePassword(
