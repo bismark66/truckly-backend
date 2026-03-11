@@ -1,5 +1,5 @@
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { VehicleType } from '../entities/driver.entity';
 
 export class CreateDriverDto {
@@ -19,4 +19,12 @@ export class CreateDriverDto {
   @IsEnum(VehicleType)
   @IsNotEmpty()
   vehicleType: VehicleType;
+
+  @ApiPropertyOptional({
+    example: 'REF-ABC123',
+    description: 'Optional referral code',
+  })
+  @IsString()
+  @IsOptional()
+  referralCode?: string;
 }
