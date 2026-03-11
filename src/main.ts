@@ -18,6 +18,7 @@ async function bootstrap() {
   app.useStaticAssets(join(__dirname, '..', 'public'), {
     prefix: '/',
   });
+  app.setGlobalPrefix('api/');
 
   // Enable CORS first
   app.enableCors({
