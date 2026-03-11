@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Controller,
   Post,
@@ -6,8 +5,10 @@ import {
   UseGuards,
   Request,
   Get,
-  Ip,
-  Headers,
+  HttpCode,
+  HttpStatus,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,23 +16,40 @@ import {
   ApiResponse,
   ApiBody,
   ApiBearerAuth,
-  ApiHeader,
-  ApiExtraModels,
+  ApiConsumes,
 } from '@nestjs/swagger';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { AuthService } from './auth.service';
-import { RegisterUserDto } from './dto/register-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import type { Request as ExpressRequest } from 'express';
+import {
+  DriverRegisterDto,
+  FleetOwnerRegisterDto,
+  CustomerRegisterDto,
+} from './dto/create-user.dto';
+import {
+  CustomerRegisterResponse,
+  DriverRegisterResponse,
+  FleetRegisterResponse,
+} from './dto/register-response.dto';
+
+type AuthenticatedRequest = ExpressRequest & {
+  user: {
+    userId: string;
+  };
+};
 
 @ApiTags('Authentication')
-@ApiExtraModels(RegisterUserDto)
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login user' })
   @ApiBody({
     schema: {
@@ -46,7 +64,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(
     @Body() body: { email: string; password: string },
-    @Request() req,
+    @Request() req: ExpressRequest,
   ) {
     // Use device info from middleware
     const deviceInfo = req.deviceInfo || {
@@ -57,72 +75,122 @@ export class AuthController {
     return this.authService.login(body.email, body.password, deviceInfo);
   }
 
-  @Post('register')
+  // ─── Driver Registration (multipart/form-data + file uploads) ──────────────
+
+  @Post('register/driver')
   @ApiOperation({
-    summary: 'Register a new user',
+    summary: 'Register a new driver',
     description:
-      'Creates a new user account. The `userType` field determines which additional fields are required:\n\n' +
-      '- **CUSTOMER** — base fields only\n' +
-      '- **DRIVER** — base fields + `licenseNumber`, `vehicleType` (and optional `referralCode`)\n' +
-      '- **FLEET_OWNER** — base fields + `companyName`, `registrationNumber` (and optional `fleetSize`, `operatingRegions`, `monthlyLoads`)',
+      'Creates a new driver account. Accepts `multipart/form-data` with optional ' +
+      '`licenseFront` and `licenseBack` image files alongside the text fields.',
   })
+  @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
-      oneOf: [
-        {
-          title: 'Customer Registration',
-          type: 'object',
-          properties: {
-            userType: { type: 'string', enum: ['CUSTOMER'] },
-            email: { type: 'string', example: 'ada.mensah@example.com' },
-            password: { type: 'string', example: 'SecurePass123!' },
-            firstName: { type: 'string', example: 'Ada' },
-            lastName: { type: 'string', example: 'Mensah' },
-            phoneNumber: { type: 'string', example: '+233244000001' },
-          },
-          required: ['userType', 'email', 'password', 'firstName', 'lastName', 'phoneNumber'],
-        },
-        {
-          title: 'Driver Registration',
-          type: 'object',
-          properties: {
-            userType: { type: 'string', enum: ['DRIVER'] },
-            email: { type: 'string', example: 'kofi.adu@example.com' },
-            password: { type: 'string', example: 'SecurePass123!' },
-            firstName: { type: 'string', example: 'Kofi' },
-            lastName: { type: 'string', example: 'Adu' },
-            phoneNumber: { type: 'string', example: '+233244000002' },
-            licenseNumber: { type: 'string', example: 'GH-1234567-89' },
-            vehicleType: { type: 'string', enum: ['TRAILER', 'TIPPER_TRUCK', 'BUS', 'MINING_TRANSPORT', 'OTHER'], example: 'TRAILER' },
-            referralCode: { type: 'string', example: 'REF-ABC123' },
-          },
-          required: ['userType', 'email', 'password', 'firstName', 'lastName', 'phoneNumber', 'licenseNumber', 'vehicleType'],
-        },
-        {
-          title: 'Fleet Owner Registration',
-          type: 'object',
-          properties: {
-            userType: { type: 'string', enum: ['FLEET_OWNER'] },
-            email: { type: 'string', example: 'ama.owusu@example.com' },
-            password: { type: 'string', example: 'SecurePass123!' },
-            firstName: { type: 'string', example: 'Ama' },
-            lastName: { type: 'string', example: 'Owusu' },
-            phoneNumber: { type: 'string', example: '+233244000003' },
-            companyName: { type: 'string', example: 'Accra Haulage Ltd' },
-            registrationNumber: { type: 'string', example: 'REG-2024-001' },
-            fleetSize: { type: 'string', example: '10' },
-            operatingRegions: { type: 'array', items: { type: 'string' }, example: ['Greater Accra', 'Ashanti'] },
-            monthlyLoads: { type: 'string', example: '20+' },
-          },
-          required: ['userType', 'email', 'password', 'firstName', 'lastName', 'phoneNumber', 'companyName', 'registrationNumber'],
-        },
+      type: 'object',
+      required: [
+        'email',
+        'password',
+        'firstName',
+        'lastName',
+        'phoneNumber',
+        'licenseNumber',
+        'vehicleType',
       ],
+      properties: {
+        email: { type: 'string', example: 'driver@example.com' },
+        password: { type: 'string', example: 'SecurePass123!' },
+        firstName: { type: 'string', example: 'Kofi' },
+        lastName: { type: 'string', example: 'Adu' },
+        phoneNumber: { type: 'string', example: '+233244000002' },
+        licenseNumber: { type: 'string', example: 'GH-1234567-89' },
+        vehicleType: {
+          type: 'string',
+          enum: ['TRAILER', 'TIPPER_TRUCK', 'BUS', 'MINING_TRANSPORT', 'OTHER'],
+        },
+        referralCode: { type: 'string', example: 'REF-ABC123' },
+        licenseFront: {
+          type: 'string',
+          format: 'binary',
+          description: 'Front page of driver licence',
+        },
+        licenseBack: {
+          type: 'string',
+          format: 'binary',
+          description: 'Back page of driver licence',
+        },
+      },
     },
   })
-  @ApiResponse({ status: 201, description: 'User successfully registered' })
-  @ApiResponse({ status: 400, description: 'Validation error or duplicate account' })
-  async register(@Body() registerDto: RegisterUserDto) {
-    return this.authService.register(registerDto);
+  @ApiResponse({
+    status: 201,
+    description: 'Driver successfully registered',
+    type: DriverRegisterResponse,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error or duplicate account',
+  })
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'licenseFront', maxCount: 1 },
+        { name: 'licenseBack', maxCount: 1 },
+      ],
+      { storage: memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } },
+    ),
+  )
+  registerDriver(
+    @Body() dto: DriverRegisterDto,
+    @UploadedFiles()
+    files: {
+      licenseFront?: Express.Multer.File[];
+      licenseBack?: Express.Multer.File[];
+    },
+  ) {
+    return this.authService.registerDriver(dto, files);
+  }
+
+  // ─── Fleet Owner Registration ────────────────────────────────────────────────
+
+  @Post('register/fleet-owner')
+  @ApiOperation({
+    summary: 'Register a new fleet owner',
+    description: 'Creates a FLEET_OWNER account. Accepts JSON body.',
+  })
+  @ApiBody({ type: FleetOwnerRegisterDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Fleet owner registered successfully',
+    type: FleetRegisterResponse,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error or duplicate account',
+  })
+  registerFleetOwner(@Body() dto: FleetOwnerRegisterDto) {
+    return this.authService.registerFleetOwner(dto);
+  }
+
+  // ─── Customer Registration ────────────────────────────────────────────────────
+
+  @Post('register/customer')
+  @ApiOperation({
+    summary: 'Register a new customer',
+    description: 'Creates a CUSTOMER account. Accepts JSON body.',
+  })
+  @ApiBody({ type: CustomerRegisterDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Customer registered successfully',
+    type: CustomerRegisterResponse,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error or duplicate account',
+  })
+  registerCustomer(@Body() dto: CustomerRegisterDto) {
+    return this.authService.registerCustomer(dto);
   }
 
   @Post('verify-token')
@@ -131,7 +199,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Test endpoint to verify JWT token is valid' })
   @ApiResponse({ status: 200, description: 'Token is valid' })
   @ApiResponse({ status: 401, description: 'Token is invalid' })
-  async verifyToken(@Request() req) {
+  verifyToken(@Request() req: AuthenticatedRequest) {
     return {
       message: 'Token is valid',
       user: req.user,
@@ -146,7 +214,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Current password is incorrect' })
   @ApiResponse({ status: 400, description: 'Bad request' })
   async changePassword(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Body() changePasswordDto: ChangePasswordDto,
   ) {
     return this.authService.changePassword(
@@ -193,7 +261,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout from all devices' })
   @ApiResponse({ status: 200, description: 'Logged out from all devices' })
-  async logoutAll(@Request() req) {
+  async logoutAll(@Request() req: AuthenticatedRequest) {
     await this.authService.logoutAll(req.user.userId);
     return { message: 'Logged out from all devices successfully' };
   }
@@ -203,7 +271,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get user active sessions' })
   @ApiResponse({ status: 200, description: 'Active sessions retrieved' })
-  async getSessions(@Request() req) {
+  async getSessions(@Request() req: AuthenticatedRequest) {
     const sessions = await this.authService.getUserActiveSessions(
       req.user.userId,
     );
