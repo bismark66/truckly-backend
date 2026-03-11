@@ -13,6 +13,12 @@ export enum UserType {
   FLEET_OWNER = 'FLEET_OWNER',
 }
 
+export enum UserStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  SUSPENDED = 'SUSPENDED',
+}
+
 @Entity()
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -52,11 +58,11 @@ export class User {
   @Column({ nullable: true, unique: true })
   googleId: string;
 
-  @Column({ nullable: true, select: false })
-  resetPasswordToken: string;
+  @Column({ type: 'enum', enum: UserStatus, default: UserStatus.ACTIVE })
+  status: UserStatus;
 
-  @Column({ type: 'timestamp', nullable: true })
-  resetPasswordExpires: Date;
+  // @Column({ type: 'timestamp', nullable: true, select: false })
+  // resetPasswordExpires: Date;
 
   @Column({ nullable: true })
   fcmToken: string;

@@ -24,39 +24,41 @@ export class CleanExpiredSessionsCron {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
 
+    let lockAcquired = false; //  track this separately
+
     try {
-      // Acquire advisory lock
       const lockResult = await queryRunner.query(
-        `SELECT pg_try_advisory_lock($1)`,
+        `SELECT pg_try_advisory_lock($1) as acquired`,
         [this.ADVISORY_LOCK_ID],
       );
 
-      if (!lockResult[0]?.pg_try_advisory_lock) {
+      lockAcquired = lockResult[0]?.acquired === true; //  explicit boolean check
+
+      if (!lockAcquired) {
         this.logger.debug('Cleanup skipped - another instance holds the lock.');
         return;
       }
 
       let totalDeleted = 0;
 
-      while (true) {
-        const result = await queryRunner.query(
+      do {
+        const result: { id: string }[] = await queryRunner.query(
           `
-          DELETE FROM user_sessions
-          WHERE id IN (
-            SELECT id FROM user_sessions
-            WHERE refresh_token_expires_at < NOW()
-            LIMIT $1
-          )
-          RETURNING id
-          `,
+        DELETE FROM user_sessions
+        WHERE id IN (
+          SELECT id FROM user_sessions
+          WHERE refresh_token_expires_at < NOW()
+          LIMIT $1
+        )
+        RETURNING id
+        `,
           [this.BATCH_SIZE],
         );
 
-        const deletedCount = result.length;
-        totalDeleted += deletedCount;
+        totalDeleted += result.length;
 
-        if (deletedCount < this.BATCH_SIZE) break;
-      }
+        if (result.length < this.BATCH_SIZE) break; // 👈 exit when batch is not full
+      } while (true);
 
       this.logger.log(
         `Expired sessions cleanup completed. Total deleted: ${totalDeleted}`,
@@ -64,9 +66,12 @@ export class CleanExpiredSessionsCron {
     } catch (error) {
       this.logger.error('Error during expired sessions cleanup:', error);
     } finally {
-      await queryRunner.query(`SELECT pg_advisory_unlock($1)`, [
-        this.ADVISORY_LOCK_ID,
-      ]);
+      if (lockAcquired) {
+        // 👈 only unlock if we actually acquired it
+        await queryRunner.query(`SELECT pg_advisory_unlock($1)`, [
+          this.ADVISORY_LOCK_ID,
+        ]);
+      }
       await queryRunner.release();
     }
   }

@@ -32,6 +32,12 @@ export class Driver {
   @Column()
   licenseNumber: string;
 
+  @Column({ nullable: true })
+  licenseFrontPageUrl: string;
+
+  @Column({ nullable: true })
+  licenseBackPageUrl: string;
+
   @Column({
     type: 'enum',
     enum: VehicleType,

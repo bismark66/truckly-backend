@@ -4,27 +4,51 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
+import { DriversService } from '../drivers/drivers.service';
+import { FleetOwnersService } from '../fleet-owners/fleet-owners.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { CreateUserDto } from '../users/dto/create-user.dto';
+import { UserType } from '../users/entities/user.entity';
 import { UserSession } from './entities/user-session.entity';
+import {
+  BaseRegisterDto,
+  CustomerRegisterDto,
+  DriverRegisterDto,
+  FleetOwnerRegisterDto,
+} from './dto/create-user.dto';
+import { FileUploadService } from '../upload/file-upload.service';
+
+type ValidatedUser = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  userType: UserType;
+  phoneNumber?: string;
+};
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     private usersService: UsersService,
+    private dataSource: DataSource,
+    private driversService: DriversService,
+    private fleetOwnersService: FleetOwnersService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private fileUploadService: FileUploadService,
     @InjectRepository(UserSession)
     private userSessionRepository: Repository<UserSession>,
   ) {}
 
-  async validateUser(email: string, pass: string): Promise<any> {
+  async validateUser(email: string, pass: string): Promise<ValidatedUser> {
     const user = await this.usersService.findOneByEmail(email);
 
     if (!user) {
@@ -42,8 +66,14 @@ export class AuthService {
     }
 
     // Return user without password if validation succeeds
-    const { password, ...result } = user;
-    return result;
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      userType: user.userType,
+      phoneNumber: user.phoneNumber,
+    };
   }
 
   async login(
@@ -56,7 +86,6 @@ export class AuthService {
     },
   ) {
     // Validate credentials
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const user = await this.validateUser(email, password);
 
     const payload = {
@@ -108,7 +137,9 @@ export class AuthService {
   async refreshToken(refreshToken: string) {
     try {
       // Verify the refresh token
-      const payload = this.jwtService.verify(refreshToken, {
+      const payload = this.jwtService.verify<{
+        sub: string;
+      }>(refreshToken, {
         secret:
           this.configService.get<string>('JWT_REFRESH_SECRET') ||
           'refreshSecretKey',
@@ -155,7 +186,7 @@ export class AuthService {
         access_token: newAccessToken,
         expires_in: 3600, // 60 minutes in seconds
       };
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
@@ -259,14 +290,167 @@ export class AuthService {
     await this.revokeSession(sessionId, 'manual_logout');
   }
 
-  async register(createUserDto: CreateUserDto) {
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-    const user = await this.usersService.create({
-      ...createUserDto,
-      password: hashedPassword,
-    });
-    const { password, ...result } = user;
-    return result;
+  private async register(registerDto: BaseRegisterDto) {
+    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+    const userData = { ...registerDto, password: hashedPassword };
+
+    switch (registerDto.userType) {
+      case UserType.DRIVER:
+        return this.driverRegistration(userData as DriverRegisterDto);
+      case UserType.FLEET_OWNER:
+        return this.fleetOwnerRegistration(userData as FleetOwnerRegisterDto);
+      case UserType.CUSTOMER:
+        return this.customerRegistration(userData as CustomerRegisterDto);
+      default:
+        throw new BadRequestException('Invalid user type');
+    }
+  }
+
+  async registerDriver(
+    dto: DriverRegisterDto,
+    files?: {
+      licenseFront?: Express.Multer.File[];
+      licenseBack?: Express.Multer.File[];
+    },
+  ) {
+    if (files?.licenseFront?.[0]) {
+      const result = await this.fileUploadService.uploadFile(
+        files.licenseFront[0],
+        { folder: 'truckly/driver/licences' },
+      );
+      dto.licenseFrontPageUrl = result.secureUrl;
+    }
+
+    if (files?.licenseBack?.[0]) {
+      const result = await this.fileUploadService.uploadFile(
+        files.licenseBack[0],
+        { folder: 'truckly/driver/licences' },
+      );
+      dto.licenseBackPageUrl = result.secureUrl;
+    }
+
+    dto.userType = 'DRIVER' as DriverRegisterDto['userType'];
+    return this.register(dto);
+  }
+
+  async registerFleetOwner(dto: FleetOwnerRegisterDto) {
+    dto.userType = 'FLEET_OWNER' as FleetOwnerRegisterDto['userType'];
+    return this.register(dto);
+  }
+
+  async registerCustomer(dto: CustomerRegisterDto) {
+    dto.userType = 'CUSTOMER' as CustomerRegisterDto['userType'];
+    return this.register(dto);
+  }
+
+  async driverRegistration(registerDto: DriverRegisterDto) {
+    if (!registerDto.licenseNumber || !registerDto.vehicleType) {
+      throw new BadRequestException(
+        'License number and vehicle type are required for driver registration',
+      );
+    }
+
+    try {
+      const driver = await this.dataSource.transaction(async (manager) => {
+        const user = await manager.getRepository('User').save({
+          email: registerDto.email,
+          password: await bcrypt.hash(registerDto.password, 10),
+          firstName: registerDto.firstName,
+          lastName: registerDto.lastName,
+          phoneNumber: registerDto.phoneNumber,
+          userType: registerDto.userType,
+        });
+
+        const { password: _password, ...userResult } = user;
+        void _password;
+
+        const driver = await manager.getRepository('Driver').save({
+          userId: user.id,
+          licenseNumber: registerDto.licenseNumber,
+          vehicleType: registerDto.vehicleType,
+          licenseFrontPageUrl: registerDto.licenseFrontPageUrl,
+          licenseBackPageUrl: registerDto.licenseBackPageUrl,
+          referralCode: registerDto.referralCode,
+        });
+        this.logger.log('here is the driver', driver);
+        return { ...userResult, driver };
+      });
+      return driver;
+    } catch (error) {
+      throw new BadRequestException(
+        error.message || 'Driver registration failed',
+      );
+    }
+  }
+
+  async fleetOwnerRegistration(registerDto: FleetOwnerRegisterDto) {
+    if (!registerDto.companyName || !registerDto.registrationNumber) {
+      throw new BadRequestException(
+        'Company name and registration number are required for fleet owner registration',
+      );
+    }
+
+    try {
+      const fleetOwner = await this.dataSource.transaction(async (manager) => {
+        const user = await manager.getRepository('User').save({
+          email: registerDto.email,
+          password: await bcrypt.hash(registerDto.password, 10),
+          firstName: registerDto.firstName,
+          lastName: registerDto.lastName,
+          phoneNumber: registerDto.phoneNumber,
+          userType: registerDto.userType,
+        });
+        const { password: _password, ...userResult } = user;
+        void _password;
+
+        const fleetOwner = await manager.getRepository('FleetOwner').save({
+          userId: user.id,
+          companyName: registerDto.companyName,
+          registrationNumber: registerDto.registrationNumber,
+          fleetSize: registerDto.fleetSize,
+          operatingRegions: registerDto.operatingRegions,
+          monthlyLoads: registerDto.monthlyLoads,
+          referralCode: registerDto.referralCode,
+        });
+
+        return { ...userResult, fleetOwner };
+      });
+      return fleetOwner;
+    } catch (error) {
+      throw new BadRequestException(
+        error.message || 'Fleet Manager Registration Failed',
+      );
+    }
+  }
+
+  async customerRegistration(registerDto: CustomerRegisterDto) {
+    try {
+      const customer = await this.dataSource.manager.transaction(
+        async (manager) => {
+          const user = await manager.getRepository('User').save({
+            email: registerDto.email,
+            password: await bcrypt.hash(registerDto.password, 10),
+            firstName: registerDto.firstName,
+            lastName: registerDto.lastName,
+            phoneNumber: registerDto.phoneNumber,
+            userType: registerDto.userType,
+          });
+
+          const { password: _password, ...userResult } = user;
+          void _password;
+
+          return { ...userResult };
+        },
+      );
+      this.logger.log(
+        `Customer ${customer.id} registered successfully with email ${customer.email}`,
+      );
+      return customer;
+    } catch (error) {
+      throw new BadRequestException(
+        error.message || 'Customer Registration Failed',
+      );
+    }
   }
 
   async changePassword(

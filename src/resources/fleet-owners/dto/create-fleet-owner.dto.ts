@@ -1,5 +1,5 @@
-import { IsNotEmpty, IsString } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateFleetOwnerDto {
   @ApiProperty({
@@ -17,4 +17,24 @@ export class CreateFleetOwnerDto {
   @IsString()
   @IsNotEmpty()
   registrationNumber: string;
+
+  @ApiPropertyOptional({ example: '10', description: 'Number of vehicles in the fleet' })
+  @IsString()
+  @IsOptional()
+  fleetSize?: string;
+
+  @ApiPropertyOptional({
+    example: ['Greater Accra', 'Ashanti'],
+    description: 'Regions the fleet operates in',
+    type: [String],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  operatingRegions?: string[];
+
+  @ApiPropertyOptional({ example: '20+', description: 'Estimated monthly loads' })
+  @IsString()
+  @IsOptional()
+  monthlyLoads?: string;
 }

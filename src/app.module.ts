@@ -22,7 +22,7 @@ import { CronModule } from './cron/cron.module';
 import { DriverEarningsModule } from './resources/driver-earnings/driver-earnings.module';
 import * as redisStore from 'cache-manager-redis-store';
 import { ScheduleModule } from '@nestjs/schedule';
-
+import { FileUploadModule } from './resources/upload/file-upload.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -93,6 +93,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     NotificationsModule,
     QueuesModule,
     CronModule,
+    FileUploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],
